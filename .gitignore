@@ -1,0 +1,36 @@
+# dependencies
+/node_modules
+
+# next.js
+/.next/
+/out/
+next-env.d.ts
+
+# production
+/build
+
+# testing
+/coverage
+
+# secrets — never commit real credentials. Only .env.example is tracked.
+.env
+.env.*
+!.env.example
+
+# runtime data written by the V1 file-backed enquiry store
+/.data/
+
+# logs / OS / editor
+npm-debug.log*
+.DS_Store
+*.pem
+*.tsbuildinfo
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# misc
+.vercel
+
+# prisma client output (generated)
+/generated/

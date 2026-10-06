@@ -1,0 +1,620 @@
+// Munna Pen Center — database schema (PostgreSQL).
+//
+// STATUS: design only. V1 of the website does not connect to a database yet
+// (it uses static catalogue data + a file-backed enquiry store behind the
+// repository interfaces in lib/repositories). This schema is the target for
+// Phase 2. Validate it any time with `npm run db:validate`.
+//
+// Conventions
+//  • Money is Decimal(12,2), INR. Prices are NEVER stored on Product: wholesale prices
+//    are quoted per customer and per quantity, so they live on QuotationItem / OrderItem.
+//  • No stock quantities are stored yet — add an InventoryItem model when stock tracking is real.
+//  • Every commercial document (Quotation, Order, Invoice) is created as a DRAFT and
+//    moves forward only through the owner-approval gate (see ApprovalRequest).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// ───────────────────────────── Enums ─────────────────────────────
+
+enum AdminRole {
+  OWNER
+  STAFF
+}
+
+/// Who performed an action. AI actions are always attributable.
+enum ActorType {
+  ADMIN
+  AI_AGENT
+  CUSTOMER
+  SYSTEM
+}
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum CustomerType {
+  SCHOOL
+  OFFICE
+  ENGINEER
+  BUSINESS
+  INSTITUTION
+  RETAILER
+  OTHER
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  CONVERTED
+  LOST
+}
+
+enum LeadSource {
+  WEBSITE
+  WHATSAPP
+  PHONE
+  REFERRAL
+  AI_AGENT
+  OTHER
+}
+
+enum EnquirySource {
+  BULK_ORDER_FORM
+  QUOTE_FORM
+  CONTACT_FORM
+  WHATSAPP
+  PHONE
+  AI_AGENT
+}
+
+enum EnquiryStatus {
+  NEW
+  IN_REVIEW
+  QUOTED
+  WON
+  LOST
+  SPAM
+}
+
+enum QuotationStatus {
+  DRAFT
+  PENDING_APPROVAL
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CANCELLED
+}
+
+enum OrderStatus {
+  PENDING_CONFIRMATION
+  CONFIRMED
+  PROCESSING
+  DISPATCHED
+  DELIVERED
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  PENDING_APPROVAL
+  ISSUED
+  PARTIALLY_PAID
+  PAID
+  VOID
+}
+
+enum PaymentMethod {
+  UPI
+  BANK_TRANSFER
+  CHEQUE
+  CASH
+  CARD
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+  REFUNDED
+}
+
+enum FollowUpType {
+  CALL
+  WHATSAPP
+  EMAIL
+  VISIT
+  PAYMENT_REMINDER
+  REPEAT_ORDER
+}
+
+enum FollowUpStatus {
+  OPEN
+  DONE
+  CANCELLED
+}
+
+/// Commercial actions that require the owner's decision. Mirrors lib/ai-sales/policy.ts.
+enum ApprovalAction {
+  PROPOSE_PRICE
+  APPLY_DISCOUNT
+  SEND_QUOTATION
+  CONFIRM_ORDER
+  ISSUE_INVOICE
+  REQUEST_PAYMENT
+  SCHEDULE_DELIVERY
+  CANCEL_ORDER
+  SEND_CUSTOMER_MESSAGE
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+/// ───────────────────────────── Staff ─────────────────────────────
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  role         AdminRole @default(STAFF)
+  /// Null until a sign-in method is chosen (credentials / email link / SSO).
+  passwordHash String?
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  assignedLeads     Lead[]
+  assignedFollowUps FollowUp[]
+  decidedApprovals  ApprovalRequest[]
+  recordedPayments  Payment[]
+}
+
+/// ──────────────────────────── Catalogue ───────────────────────────
+
+model Category {
+  id             String  @id @default(cuid())
+  slug           String  @unique
+  name           String
+  summary        String?
+  description    String?
+  seoTitle       String?
+  seoDescription String?
+  sortOrder      Int     @default(0)
+  isActive       Boolean @default(true)
+
+  /// Optional nesting, for sub-categories later.
+  parentId String?
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[] @relation("CategoryTree")
+
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([parentId])
+}
+
+model Product {
+  id               String        @id @default(cuid())
+  slug             String        @unique
+  /// Internal stock-keeping code, if the business uses one.
+  sku              String?       @unique
+  name             String
+  shortDescription String
+  description      String?
+  brand            String?
+  imageUrl         String?
+  imageAlt         String?
+  /// e.g. "Box of 10 · Carton of 100". Free text until pack structures are defined.
+  packInfo         String?
+  /// For GST invoicing. Fill from the business's real tax data — never guessed.
+  hsnCode          String?
+  gstRatePercent   Decimal?      @db.Decimal(5, 2)
+  tags             String[]
+  status           ProductStatus @default(DRAFT)
+  isFeatured       Boolean       @default(false)
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  enquiryItems   EnquiryItem[]
+  quotationItems QuotationItem[]
+  orderItems     OrderItem[]
+  invoiceItems   InvoiceItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoryId])
+  @@index([status])
+}
+
+/// ─────────────────────────── CRM / sales ──────────────────────────
+
+/// A prospective buyer who has contacted us but has not yet been quoted or ordered.
+model Lead {
+  id               String     @id @default(cuid())
+  name             String
+  organizationName String?
+  /// E.164, e.g. +917979025166
+  phone            String
+  email            String?
+  city             String?
+  state            String?
+  source           LeadSource @default(WEBSITE)
+  status           LeadStatus @default(NEW)
+  notes            String?
+
+  assignedToId String?
+  assignedTo   AdminUser? @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  /// Set when the lead is converted (first quotation draft / accepted order).
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  enquiries Enquiry[]
+  followUps FollowUp[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([phone])
+  @@index([status])
+  @@index([assignedToId])
+  @@index([customerId])
+}
+
+/// A buying organisation (or individual) we have quoted or sold to.
+model Customer {
+  id               String       @id @default(cuid())
+  type             CustomerType @default(OTHER)
+  organizationName String
+  contactName      String
+  phone            String
+  email            String?
+  /// Buyer's GSTIN, as supplied by them. Needed for GST invoices.
+  gstin            String?
+
+  billingLine1    String?
+  billingCity     String?
+  billingState    String?
+  billingPincode  String?
+  shippingLine1   String?
+  shippingCity    String?
+  shippingState   String?
+  shippingPincode String?
+
+  notes String?
+
+  leads      Lead[]
+  quotations Quotation[]
+  orders     Order[]
+  invoices   Invoice[]
+  followUps  FollowUp[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([phone])
+}
+
+/// What a customer asked for, from any channel.
+model Enquiry {
+  id                     String        @id @default(cuid())
+  /// Customer-facing reference, e.g. ENQ-20261006-K4PZ.
+  reference              String        @unique
+  source                 EnquirySource
+  status                 EnquiryStatus @default(NEW)
+  productsRequired       String
+  approximateQuantity    String?
+  additionalRequirements String?
+  city                   String?
+  state                  String?
+
+  leadId String
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  items      EnquiryItem[]
+  quotations Quotation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([leadId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model EnquiryItem {
+  id           String  @id @default(cuid())
+  /// Null when the customer asked for something that is not in the catalogue.
+  productId    String?
+  productName  String
+  quantityNote String?
+
+  enquiryId String
+  enquiry   Enquiry  @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([enquiryId])
+  @@index([productId])
+}
+
+/// ───────────────── Quotation → Order → Invoice → Payment ─────────────────
+
+model Quotation {
+  id         String          @id @default(cuid())
+  /// e.g. QT-2026-0001 — issued when the quotation is first saved.
+  number     String          @unique
+  status     QuotationStatus @default(DRAFT)
+  createdBy  ActorType       @default(ADMIN)
+  validUntil DateTime?
+  currency   String          @default("INR")
+  subtotal   Decimal         @default(0) @db.Decimal(12, 2)
+  taxTotal   Decimal         @default(0) @db.Decimal(12, 2)
+  total      Decimal         @default(0) @db.Decimal(12, 2)
+  terms      String?
+  notes      String?
+  sentAt     DateTime?
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  enquiryId  String?
+  enquiry    Enquiry? @relation(fields: [enquiryId], references: [id], onDelete: SetNull)
+
+  items     QuotationItem[]
+  order     Order?
+  approvals ApprovalRequest[]
+  followUps FollowUp[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([enquiryId])
+  @@index([status])
+}
+
+model QuotationItem {
+  id             String  @id @default(cuid())
+  description    String
+  quantity       Int
+  unit           String  @default("pcs")
+  /// Set by the owner (or proposed by the agent and approved by the owner).
+  unitPrice      Decimal @db.Decimal(12, 2)
+  hsnCode        String?
+  gstRatePercent Decimal @db.Decimal(5, 2)
+  lineTotal      Decimal @db.Decimal(12, 2)
+
+  quotationId String
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([quotationId])
+  @@index([productId])
+}
+
+model Order {
+  id       String      @id @default(cuid())
+  /// e.g. ORD-2026-0001
+  number   String      @unique
+  status   OrderStatus @default(PENDING_CONFIRMATION)
+  currency String      @default("INR")
+  subtotal Decimal     @default(0) @db.Decimal(12, 2)
+  taxTotal Decimal     @default(0) @db.Decimal(12, 2)
+  total    Decimal     @default(0) @db.Decimal(12, 2)
+
+  shippingLine1     String?
+  shippingCity      String?
+  shippingState     String?
+  shippingPincode   String?
+  /// Transport / courier details, recorded when dispatched.
+  transporter       String?
+  trackingReference String?
+  confirmedAt       DateTime?
+  dispatchedAt      DateTime?
+  deliveredAt       DateTime?
+  notes             String?
+
+  customerId  String
+  customer    Customer   @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  /// An order is created from at most one accepted quotation.
+  quotationId String?    @unique
+  quotation   Quotation? @relation(fields: [quotationId], references: [id], onDelete: SetNull)
+
+  items     OrderItem[]
+  invoices  Invoice[]
+  approvals ApprovalRequest[]
+  followUps FollowUp[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([status])
+}
+
+model OrderItem {
+  id             String  @id @default(cuid())
+  description    String
+  quantity       Int
+  unit           String  @default("pcs")
+  unitPrice      Decimal @db.Decimal(12, 2)
+  hsnCode        String?
+  gstRatePercent Decimal @db.Decimal(5, 2)
+  lineTotal      Decimal @db.Decimal(12, 2)
+
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model Invoice {
+  id     String        @id @default(cuid())
+  /// Sequential invoice number as required for GST invoices.
+  number String        @unique
+  status InvoiceStatus @default(DRAFT)
+
+  issueDate DateTime?
+  dueDate   DateTime?
+  currency  String    @default("INR")
+  subtotal  Decimal   @default(0) @db.Decimal(12, 2)
+  cgstTotal Decimal   @default(0) @db.Decimal(12, 2)
+  sgstTotal Decimal   @default(0) @db.Decimal(12, 2)
+  igstTotal Decimal   @default(0) @db.Decimal(12, 2)
+  total     Decimal   @default(0) @db.Decimal(12, 2)
+
+  /// Snapshots taken at issue time so later customer edits don't alter issued invoices.
+  buyerGstin    String?
+  placeOfSupply String?
+  /// Filled by the e-invoicing / GST provider integration, if used.
+  irn           String?
+
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  items     InvoiceItem[]
+  payments  Payment[]
+  approvals ApprovalRequest[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([customerId])
+  @@index([status])
+}
+
+model InvoiceItem {
+  id             String  @id @default(cuid())
+  description    String
+  quantity       Int
+  unit           String  @default("pcs")
+  unitPrice      Decimal @db.Decimal(12, 2)
+  hsnCode        String?
+  gstRatePercent Decimal @db.Decimal(5, 2)
+  lineTotal      Decimal @db.Decimal(12, 2)
+
+  invoiceId String
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId])
+  @@index([productId])
+}
+
+model Payment {
+  id               String        @id @default(cuid())
+  amount           Decimal       @db.Decimal(12, 2)
+  method           PaymentMethod
+  status           PaymentStatus @default(PENDING)
+  /// UTR / transaction id / cheque number.
+  reference        String?
+  /// Id from a payment gateway, if one is integrated later.
+  gatewayPaymentId String?
+  paidAt           DateTime?
+  notes            String?
+
+  invoiceId    String
+  invoice      Invoice    @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  /// Payments are recorded by staff; the AI agent never records or moves money.
+  recordedById String?
+  recordedBy   AdminUser? @relation(fields: [recordedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([invoiceId])
+  @@index([status])
+}
+
+/// ───────────────────── Follow-ups & owner approvals ─────────────────────
+
+model FollowUp {
+  id          String         @id @default(cuid())
+  type        FollowUpType
+  status      FollowUpStatus @default(OPEN)
+  dueAt       DateTime
+  notes       String?
+  createdBy   ActorType      @default(ADMIN)
+  completedAt DateTime?
+
+  /// A follow-up attaches to whichever record it concerns.
+  leadId      String?
+  lead        Lead?      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  customerId  String?
+  customer    Customer?  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  quotationId String?
+  quotation   Quotation? @relation(fields: [quotationId], references: [id], onDelete: SetNull)
+  orderId     String?
+  order       Order?     @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  assignedToId String?
+  assignedTo   AdminUser? @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, dueAt])
+  @@index([leadId])
+  @@index([customerId])
+}
+
+/// The owner-approval gate. The AI agent (or staff) files a request; the commercial
+/// action may execute only after the owner sets status = APPROVED.
+model ApprovalRequest {
+  id           String         @id @default(cuid())
+  action       ApprovalAction
+  status       ApprovalStatus @default(PENDING)
+  requestedBy  ActorType      @default(AI_AGENT)
+  /// Human-readable summary shown to the owner, e.g. "Send quotation QT-2026-0007 to ABC School (₹…)".
+  summary      String
+  /// The exact change being approved — what will be executed if approved.
+  payload      Json?
+  expiresAt    DateTime?
+  decidedAt    DateTime?
+  decisionNote String?
+
+  decidedById String?
+  decidedBy   AdminUser? @relation(fields: [decidedById], references: [id], onDelete: SetNull)
+
+  quotationId String?
+  quotation   Quotation? @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  orderId     String?
+  order       Order?     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  invoiceId   String?
+  invoice     Invoice?   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([quotationId])
+  @@index([orderId])
+  @@index([invoiceId])
+}
