@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { INDIA_STATES_AND_UTS } from "@/lib/domain/india";
+import { sanitiseText } from "@/lib/text";
 import { LIMITS } from "@/lib/validation/limits";
 import { normaliseIndianMobile } from "@/lib/phone";
 
@@ -105,20 +106,30 @@ export function toFieldErrors(error: z.ZodError): Record<string, string> {
   return fieldErrors;
 }
 
+/**
+ * Every string field of a FormData, cleaned with `sanitiseText` (CRLF → LF, control characters removed).
+ * Files are ignored. Use this — not the raw entries — as the input to the schemas.
+ */
+export function readFields(formData: FormData): Record<string, string> {
+  const fields: Record<string, string> = {};
+  for (const [key, value] of formData.entries()) {
+    if (typeof value === "string") fields[key] = sanitiseText(value);
+  }
+  return fields;
+}
+
 /** Reads the repeated `itemSlug` / `itemQuantity` inputs off a FormData into `{slug, quantity}[]`. */
 export function readItems(formData: FormData): { slug: string; quantity?: string }[] {
-  const slugs = formData.getAll("itemSlug").map(String);
-  const quantities = formData.getAll("itemQuantity").map(String);
+  const slugs = formData.getAll("itemSlug").map((value) => sanitiseText(String(value)));
+  const quantities = formData.getAll("itemQuantity").map((value) => sanitiseText(String(value)));
   return slugs.map((slug, index) => ({ slug, quantity: quantities[index] ?? "" }));
 }
 
-/** Plain string values of a FormData (for re-populating the form after an error). Skips files and the honeypot. */
+/** Plain string values of a FormData (for re-populating the form after an error). Skips the honeypot and internals. */
 export function readValues(formData: FormData): Record<string, string> {
   const values: Record<string, string> = {};
-  for (const [key, value] of formData.entries()) {
-    if (typeof value === "string" && key !== "website" && !key.startsWith("item") && !key.startsWith("$ACTION")) {
-      values[key] = value;
-    }
+  for (const [key, value] of Object.entries(readFields(formData))) {
+    if (key !== "website" && !key.startsWith("item") && !key.startsWith("$ACTION")) values[key] = value;
   }
   return values;
 }

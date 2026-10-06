@@ -5,7 +5,7 @@ import { StorageUnavailableError } from "@/lib/repositories/types";
 import { withTimeout } from "@/lib/repositories/with-timeout";
 import { buildContactEnquiry, prepareBulkEnquiry } from "@/lib/services/enquiries";
 import type { NewEnquiry } from "@/lib/domain/types";
-import { bulkEnquirySchema, contactSchema, readItems, readValues, toFieldErrors } from "@/lib/validation/enquiry";
+import { bulkEnquirySchema, contactSchema, readFields, readItems, readValues, toFieldErrors } from "@/lib/validation/enquiry";
 import type { FormState } from "@/lib/validation/form-state";
 import { buildEnquiryWhatsAppMessage, buildWhatsAppUrl, whatsAppMessages } from "@/lib/whatsapp";
 
@@ -24,6 +24,16 @@ const STORAGE_TIMEOUT_MS = 8_000;
 const GENERIC_ERROR = "Something went wrong. Please try again, or send your requirement on WhatsApp.";
 const VALIDATION_ERROR = "Please check the highlighted fields and try again.";
 
+/** Builds a WhatsApp link from a message, falling back to a plain "hello" link if that ever fails. */
+function safeWhatsAppUrl(message: () => string, fallbackIntro: string): string {
+  try {
+    return buildWhatsAppUrl(message());
+  } catch (error) {
+    console.error("[enquiry] could not build WhatsApp link:", error);
+    return buildWhatsAppUrl(fallbackIntro);
+  }
+}
+
 /** Stores the record, or returns an error state carrying a WhatsApp fallback. */
 async function store(
   record: NewEnquiry,
@@ -33,13 +43,15 @@ async function store(
 ): Promise<FormState> {
   try {
     const enquiry = await withTimeout(getEnquiryRepository().create(record), STORAGE_TIMEOUT_MS);
+    // The enquiry is saved. The WhatsApp link is a convenience: whatever happens building it, the
+    // customer must still be told their enquiry was received.
     return {
       status: "success",
       reference: enquiry.reference,
-      whatsappUrl: buildWhatsAppUrl(buildEnquiryWhatsAppMessage({ ...record, reference: enquiry.reference }, intro)),
+      whatsappUrl: safeWhatsAppUrl(() => buildEnquiryWhatsAppMessage({ ...record, reference: enquiry.reference }, intro), intro),
     };
   } catch (error) {
-    const fallbackUrl = buildWhatsAppUrl(buildEnquiryWhatsAppMessage(record, intro));
+    const fallbackUrl = safeWhatsAppUrl(() => buildEnquiryWhatsAppMessage(record, intro), intro);
     if (error instanceof StorageUnavailableError) {
       console.error("[enquiry] storage unavailable:", error.cause ?? error.message);
       return { status: "error", message: messages.storageFailed, values, whatsappUrl: fallbackUrl };
@@ -58,7 +70,7 @@ const silentSuccess = (intro: string): FormState => ({
 
 export async function submitBulkEnquiryAction(_previous: FormState, formData: FormData): Promise<FormState> {
   const values = readValues(formData);
-  const parsed = bulkEnquirySchema.safeParse({ ...Object.fromEntries(formData.entries()), items: readItems(formData) });
+  const parsed = bulkEnquirySchema.safeParse({ ...readFields(formData), items: readItems(formData) });
 
   if (!parsed.success) {
     return { status: "error", message: VALIDATION_ERROR, fieldErrors: toFieldErrors(parsed.error), values };
@@ -83,7 +95,7 @@ export async function submitBulkEnquiryAction(_previous: FormState, formData: Fo
 
 export async function submitContactAction(_previous: FormState, formData: FormData): Promise<FormState> {
   const values = readValues(formData);
-  const parsed = contactSchema.safeParse(Object.fromEntries(formData.entries()));
+  const parsed = contactSchema.safeParse(readFields(formData));
 
   if (!parsed.success) {
     return { status: "error", message: VALIDATION_ERROR, fieldErrors: toFieldErrors(parsed.error), values };

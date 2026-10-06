@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/state-panels";
 import { CtaBand } from "@/components/home/cta-band";
 import { getCatalogue } from "@/lib/repositories";
 import { pageMetadata } from "@/lib/seo";
+import { truncate } from "@/lib/text";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -18,7 +19,7 @@ const first = (value: string | string[] | undefined) => (Array.isArray(value) ? 
 async function readParams(searchParams: SearchParams) {
   const params = await searchParams;
   const catalogue = getCatalogue();
-  const query = (first(params.q) ?? "").trim().slice(0, 80);
+  const query = truncate((first(params.q) ?? "").trim(), 80, "");
   const categories = await catalogue.listCategories();
   const category = categories.find((c) => c.slug === first(params.category));
   const page = Math.max(1, parseInt(first(params.page) ?? "1", 10) || 1);

@@ -12,6 +12,16 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
+/**
+ * Visitors control every field, so print them as inert single-line text: line breaks become " | " (a
+ * visitor can't fake a second enquiry row) and every control character is dropped (a visitor can't send
+ * terminal escape sequences to the owner's screen).
+ */
+const text = (value) =>
+  String(value ?? "")
+    .replace(/\r\n|\r|\n|[\p{Zl}\p{Zp}]/gu, " | ")
+    .replace(/\p{Cc}/gu, " ");
+
 const args = process.argv.slice(2);
 const asJson = args.includes("--json");
 const limit = Number(args.find((arg) => /^\d+$/.test(arg))) || 50;
@@ -48,12 +58,12 @@ if (asJson) {
 } else {
   for (const e of enquiries) {
     const when = new Date(e.createdAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
-    console.log(`\n${e.reference}  ·  ${when}  ·  ${e.source}`);
-    console.log(`  ${e.name}${e.organization ? ` (${e.organization})` : ""}  ·  ${e.phone}${e.email ? `  ·  ${e.email}` : ""}`);
-    if (e.city || e.state) console.log(`  ${[e.city, e.state].filter(Boolean).join(", ")}`);
-    console.log(`  Products: ${String(e.productsRequired).replace(/\n/g, " | ")}`);
-    if (e.approximateQuantity) console.log(`  Quantity: ${e.approximateQuantity}`);
-    if (e.additionalRequirements) console.log(`  Notes: ${e.additionalRequirements}`);
+    console.log(`\n${text(e.reference)}  ·  ${text(when)}  ·  ${text(e.source)}`);
+    console.log(`  ${text(e.name)}${e.organization ? ` (${text(e.organization)})` : ""}  ·  ${text(e.phone)}${e.email ? `  ·  ${text(e.email)}` : ""}`);
+    if (e.city || e.state) console.log(`  ${text([e.city, e.state].filter(Boolean).join(", "))}`);
+    console.log(`  Products: ${text(e.productsRequired)}`);
+    if (e.approximateQuantity) console.log(`  Quantity: ${text(e.approximateQuantity)}`);
+    if (e.additionalRequirements) console.log(`  Notes: ${text(e.additionalRequirements)}`);
   }
   console.log(`\n${enquiries.length} enquir${enquiries.length === 1 ? "y" : "ies"} shown. File: ${file}`);
 }

@@ -29,7 +29,9 @@ export class FileEnquiryRepository implements EnquiryRepository {
 
     try {
       await mkdir(this.directory, { recursive: true });
-      await appendFile(this.file, `${JSON.stringify(enquiry)}\n`, { encoding: "utf8", mode: 0o600 });
+      // Leading "\n": if an earlier append was cut short (disk full, power loss) the file may end mid-line;
+      // starting on a fresh line keeps THIS record readable. Blank lines are skipped when reading.
+      await appendFile(this.file, `\n${JSON.stringify(enquiry)}\n`, { encoding: "utf8", mode: 0o600 });
     } catch (cause) {
       throw new StorageUnavailableError("Could not write enquiry to disk", { cause });
     }

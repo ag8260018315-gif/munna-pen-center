@@ -4,6 +4,7 @@ import { EnquiryForm } from "@/components/forms/enquiry-form";
 import { Container, PageHeader } from "@/components/ui/section";
 import { getCatalogue } from "@/lib/repositories";
 import { pageMetadata } from "@/lib/seo";
+import { truncate } from "@/lib/text";
 import { whatsAppMessages } from "@/lib/whatsapp";
 
 export const metadata = pageMetadata({
@@ -26,7 +27,7 @@ export default async function RequestQuotePage({ searchParams }: { searchParams:
   const params = await searchParams;
   const productSlug = first(params.product);
   const product = productSlug ? await getCatalogue().getProductBySlug(productSlug) : null;
-  const need = (first(params.need) ?? "").trim().slice(0, 200);
+  const need = truncate((first(params.need) ?? "").trim(), 200, "");
 
   return (
     <>

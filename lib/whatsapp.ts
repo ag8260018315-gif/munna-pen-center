@@ -1,5 +1,6 @@
 import { siteConfig } from "@/lib/config/site";
 import { toWhatsAppNumber } from "@/lib/phone";
+import { truncate, wellFormed } from "@/lib/text";
 
 /**
  * Click-to-chat links (`https://wa.me/<number>?text=<message>`).
@@ -11,7 +12,8 @@ import { toWhatsAppNumber } from "@/lib/phone";
  */
 export function buildWhatsAppUrl(message?: string): string {
   const base = `https://wa.me/${toWhatsAppNumber(siteConfig.contact.phoneE164)}`;
-  return message ? `${base}?text=${encodeURIComponent(message)}` : base;
+  // wellFormed(): encodeURIComponent THROWS on a lone surrogate, and a link builder must never fail.
+  return message ? `${base}?text=${encodeURIComponent(wellFormed(message))}` : base;
 }
 
 /** Ready-made messages used across the site. Edit the wording in one place. */
@@ -22,7 +24,7 @@ export const whatsAppMessages = {
     `Hello Munna Pen Center, I am interested in wholesale pricing for: ${productName}.`,
 } as const;
 
-const clip = (text: string, max = 300) => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
+const clip = (text: string, max = 300) => truncate(text, max);
 
 interface EnquiryMessageFields {
   name: string;

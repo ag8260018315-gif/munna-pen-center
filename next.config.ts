@@ -24,6 +24,11 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
+  experimental: {
+    // The default cap is 1 MB, ~50x the largest legitimate enquiry (≈60 KB even with 50 listed products
+    // and every field full of multi-byte text). A small cap blunts oversized-POST abuse.
+    serverActions: { bodySizeLimit: "128kb" },
+  },
   images: {
     formats: ["image/avif", "image/webp"],
     // Product photos are served from /public. If images move to a CDN or object
