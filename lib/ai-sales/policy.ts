@@ -22,7 +22,7 @@
 
 export type ActionPolicy = "AUTONOMOUS" | "OWNER_APPROVAL" | "FORBIDDEN";
 
-export const AGENT_ACTION_POLICY = {
+export const AGENT_ACTION_POLICY = Object.freeze({
   // Read / draft — nothing leaves the system and nothing is committed.
   SEARCH_CATALOGUE: "AUTONOMOUS",
   RECORD_REQUIREMENT: "AUTONOMOUS",
@@ -46,12 +46,15 @@ export const AGENT_ACTION_POLICY = {
   REFUND_PAYMENT: "FORBIDDEN",
   CHANGE_PAYMENT_DETAILS: "FORBIDDEN",
   EDIT_ADMIN_USERS: "FORBIDDEN",
-} as const satisfies Record<string, ActionPolicy>;
+  /** Payments are recorded by staff or reconciled from the payment provider — never by the agent. */
+  RECORD_PAYMENT: "FORBIDDEN",
+} as const satisfies Record<string, ActionPolicy>);
 
 export type AgentAction = keyof typeof AGENT_ACTION_POLICY;
 
 export function isKnownAction(action: string): action is AgentAction {
-  return Object.hasOwn(AGENT_ACTION_POLICY, action);
+  // typeof first: Object.hasOwn would coerce an array or object with toString() into a key.
+  return typeof action === "string" && Object.hasOwn(AGENT_ACTION_POLICY, action);
 }
 
 /** Policy for an action name. Unknown actions are FORBIDDEN (default deny). */
@@ -59,8 +62,12 @@ export function policyFor(action: string): ActionPolicy {
   return isKnownAction(action) ? AGENT_ACTION_POLICY[action] : "FORBIDDEN";
 }
 
-/** The kinds of record an approval can be about. Each has a foreign key on the Prisma `ApprovalRequest` model. */
-export type ApprovalTargetType = "QUOTATION" | "ORDER" | "INVOICE" | "LEAD" | "CUSTOMER";
+/**
+ * The kinds of record an approval can be about. Each has a foreign key on the Prisma `ApprovalRequest` model
+ * (quotationId, orderId, …); a test reads the schema and fails if the two lists drift apart.
+ */
+export const APPROVAL_TARGET_TYPES = ["QUOTATION", "ORDER", "INVOICE", "LEAD", "CUSTOMER"] as const;
+export type ApprovalTargetType = (typeof APPROVAL_TARGET_TYPES)[number];
 
 export interface ApprovalTarget {
   type: ApprovalTargetType;
@@ -68,7 +75,7 @@ export interface ApprovalTarget {
 }
 
 /** Which record types each owner-approval action may apply to. An approval for the wrong kind of record is void. */
-export const ACTION_TARGET_TYPES = {
+export const ACTION_TARGET_TYPES = Object.freeze({
   PROPOSE_PRICE: ["QUOTATION"],
   APPLY_DISCOUNT: ["QUOTATION"],
   SEND_QUOTATION: ["QUOTATION"],
@@ -78,9 +85,16 @@ export const ACTION_TARGET_TYPES = {
   SCHEDULE_DELIVERY: ["ORDER"],
   CANCEL_ORDER: ["ORDER"],
   SEND_CUSTOMER_MESSAGE: ["LEAD", "CUSTOMER"],
-} as const satisfies Record<string, readonly ApprovalTargetType[]>;
+} as const satisfies Record<string, readonly ApprovalTargetType[]>);
+for (const types of Object.values(ACTION_TARGET_TYPES)) Object.freeze(types);
 
-export type ApprovalStatus = "PENDING" | "APPROVED" | "REJECTED" | "EXPIRED";
+/** Mirrors the Prisma `ApprovalStatus` enum (checked by a test). */
+export const APPROVAL_STATUSES = ["PENDING", "APPROVED", "REJECTED", "EXPIRED"] as const;
+export type ApprovalStatus = (typeof APPROVAL_STATUSES)[number];
+
+/** Mirrors the Prisma `AdminRole` enum (checked by a test). Only an OWNER decision authorises anything. */
+export const APPROVER_ROLES = ["OWNER", "STAFF"] as const;
+export type ApproverRole = (typeof APPROVER_ROLES)[number];
 
 /** The slice of an `ApprovalRequest` row that the policy needs to see. */
 export interface ApprovalRef {
@@ -91,12 +105,18 @@ export interface ApprovalRef {
   target: ApprovalTarget;
   /** `hashPayload()` of the exact change the owner reviewed. */
   payloadHash: string;
-  /** Role of the admin who decided. Only OWNER decisions count. */
-  decidedByRole: "OWNER" | "STAFF" | null | undefined;
+  /**
+   * The decider's role AT THE TIME OF THE DECISION (snapshotted on the row, not read from the user's current role —
+   * promoting a staff member later must not turn their old decisions into owner decisions). Only OWNER counts.
+   */
+  decidedByRole: ApproverRole | null | undefined;
   /** ISO 8601 with an explicit offset (e.g. 2026-10-07T12:00:00Z). Mandatory: no valid expiry, no authority. */
   expiresAt: string | null | undefined;
-  /** Set once the approved action has been carried out. An approval authorises ONE execution. */
-  executedAt?: string | null;
+  /**
+   * When the approved action was carried out; `null` ONLY if it has not been. An approval authorises ONE execution.
+   * Required on purpose: a mapper that forgets the field must not look like "never used".
+   */
+  executedAt: string | null;
 }
 
 /** What the agent is about to do. */
@@ -110,6 +130,30 @@ export interface ProposedAction {
 
 /** ISO 8601 date-time WITH an explicit offset. Anything ambiguous (no zone, date only, DD/MM/YYYY) is rejected. */
 const ISO_WITH_OFFSET = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:\d{2})$/;
+
+/**
+ * How far ahead an approval's expiry may be. Approvals are meant to be acted on within days; without a ceiling a
+ * request filed with `9999-12-31` would be a permanent licence. Set `expiresAt` on the server when the request is
+ * created (never from agent input) and keep it inside this window.
+ */
+export const MAX_APPROVAL_WINDOW_DAYS = 30;
+const MAX_APPROVAL_WINDOW_MS = MAX_APPROVAL_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+
+const SHA256_HEX = /^[0-9a-f]{64}$/;
+
+const isNonEmptyString = (value: unknown): value is string => typeof value === "string" && value.length > 0;
+
+/**
+ * Parses an ISO 8601 date-time with an explicit offset, or returns NaN. `Date.parse` accepts 2027-02-30 and rolls it
+ * to 2 March, so the calendar date is checked by round-tripping it.
+ */
+function parseExpiry(text: string): number {
+  if (!ISO_WITH_OFFSET.test(text)) return Number.NaN;
+  const [year, month, day] = [Number(text.slice(0, 4)), Number(text.slice(5, 7)), Number(text.slice(8, 10))];
+  const probe = new Date(Date.UTC(year, month - 1, day));
+  if (probe.getUTCFullYear() !== year || probe.getUTCMonth() !== month - 1 || probe.getUTCDate() !== day) return Number.NaN;
+  return Date.parse(text);
+}
 
 function isTargetAllowed(action: string, type: ApprovalTargetType): boolean {
   const allowed: readonly string[] | undefined = Object.hasOwn(ACTION_TARGET_TYPES, action)
@@ -130,24 +174,33 @@ function isTargetAllowed(action: string, type: ApprovalTargetType): boolean {
  *      • the record type is valid for that action,
  *      • it was decided by the OWNER (not staff, not the agent),
  *      • it has NOT already been executed (single use),
- *      • it has a valid, explicit expiry that is still in the future.
+ *      • it has a valid, explicit expiry that is still in the future and not further away than
+ *        MAX_APPROVAL_WINDOW_DAYS.
+ *
+ *  `payloadHash` must be the hash of the payload the executor is ABOUT to run, computed by the executor itself
+ *  from the stored `ApprovalRequest.payload` (see `payloadMatchesHash`) — never a value supplied by the model.
+ *  This function compares hashes; it cannot know whether the caller computed its hash honestly.
  */
 export function canExecute(proposed: ProposedAction, approval?: ApprovalRef | null, now: Date = new Date()): boolean {
+  if (typeof proposed?.action !== "string") return false;
   const policy = policyFor(proposed.action);
   if (policy === "AUTONOMOUS") return true;
   if (policy === "FORBIDDEN") return false;
 
   const { action, target, payloadHash } = proposed;
-  if (!target || !payloadHash || !isTargetAllowed(action, target.type)) return false;
+  if (!target || !isNonEmptyString(target.id) || !isNonEmptyString(target.type)) return false;
+  if (!isNonEmptyString(payloadHash) || !SHA256_HEX.test(payloadHash)) return false;
+  if (!isTargetAllowed(action, target.type)) return false;
 
   if (!approval || approval.status !== "APPROVED" || approval.action !== action) return false;
   if (approval.target?.type !== target.type || approval.target?.id !== target.id) return false;
   if (approval.payloadHash !== payloadHash) return false;
   if (approval.decidedByRole !== "OWNER") return false;
-  if (approval.executedAt) return false;
+  // `null` is the only value that means "not executed yet"; undefined, "" or anything else = unknown = no.
+  if (approval.executedAt !== null) return false;
 
-  const expiresAt = typeof approval.expiresAt === "string" ? approval.expiresAt.trim() : "";
-  const expires = ISO_WITH_OFFSET.test(expiresAt) ? Date.parse(expiresAt) : Number.NaN;
+  if (!(now instanceof Date)) return false;
   const current = now.getTime();
-  return Number.isFinite(expires) && Number.isFinite(current) && expires > current;
+  const expires = typeof approval.expiresAt === "string" ? parseExpiry(approval.expiresAt.trim()) : Number.NaN;
+  return Number.isFinite(expires) && Number.isFinite(current) && expires > current && expires - current <= MAX_APPROVAL_WINDOW_MS;
 }

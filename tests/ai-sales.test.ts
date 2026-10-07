@@ -1,17 +1,21 @@
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
-import { hashPayload } from "@/lib/ai-sales/payload-hash";
+import { hashPayload, payloadMatchesHash } from "@/lib/ai-sales/payload-hash";
 import {
   ACTION_TARGET_TYPES,
   AGENT_ACTION_POLICY,
+  APPROVAL_STATUSES,
+  APPROVAL_TARGET_TYPES,
+  APPROVER_ROLES,
   canExecute,
   isKnownAction,
+  MAX_APPROVAL_WINDOW_DAYS,
   policyFor,
   type AgentAction,
   type ApprovalRef,
   type ProposedAction,
 } from "@/lib/ai-sales/policy";
-import { SALES_STAGES, canTransition, getStage, nextStages, transitionRequiresOwnerApproval } from "@/lib/ai-sales/workflow";
+import { SALES_STAGES, canTransition, getStage, nextStages, transitionRequiresOwnerApproval, type SalesStageId } from "@/lib/ai-sales/workflow";
 
 const NOW = new Date("2026-10-06T12:00:00Z");
 const QUOTE_A = { type: "QUOTATION", id: "qt_A" } as const;
@@ -30,6 +34,9 @@ const approval = (over: Partial<ApprovalRef> = {}): ApprovalRef => ({
   executedAt: null,
   ...over,
 });
+
+/** Every stage from which `to` can be reached in the pure graph. */
+const nextStageSources = (to: SalesStageId) => (["CLOSED_LOST", ...SALES_STAGES.map((stage) => stage.id)] as SalesStageId[]).filter((from) => canTransition(from, to));
 
 const approvalActions = Object.entries(AGENT_ACTION_POLICY)
   .filter(([, policy]) => policy === "OWNER_APPROVAL")
@@ -119,6 +126,59 @@ describe("owner-approval actions", () => {
   });
 });
 
+describe("canExecute refuses malformed input rather than guessing", () => {
+  it("an approval that does not say whether it was executed is NOT usable (missing, empty or wrong type = unknown = no)", () => {
+    for (const executedAt of [undefined, "", 0, false] as const) {
+      expect(canExecute(proposal(), approval({ executedAt: executedAt as unknown as string | null }), NOW), String(executedAt)).toBe(false);
+    }
+    const withoutField: Partial<ApprovalRef> = approval();
+    delete withoutField.executedAt;
+    expect("executedAt" in withoutField).toBe(false);
+    expect(canExecute(proposal(), withoutField as ApprovalRef, NOW)).toBe(false);
+  });
+
+  it("an action that is not a plain string is denied, never coerced into a known one", () => {
+    for (const action of [["SEARCH_CATALOGUE"], { toString: () => "SEARCH_CATALOGUE" }, 42, null, undefined]) {
+      expect(canExecute({ action: action as unknown as string }), String(action)).toBe(false);
+      expect(policyFor(action as unknown as string), String(action)).toBe("FORBIDDEN");
+    }
+  });
+
+  it("a target without a real id is denied even if both sides are 'equal'", () => {
+    for (const id of ["", undefined, null, 7]) {
+      const target = { type: "QUOTATION", id } as unknown as ProposedAction["target"];
+      expect(canExecute(proposal({ target }), approval({ target: target as ApprovalRef["target"] }), NOW), String(id)).toBe(false);
+    }
+  });
+
+  it("a payload hash that is not a SHA-256 hex digest is denied", () => {
+    for (const hash of ["x", "HASH", HASH.toUpperCase(), HASH.slice(1)]) {
+      expect(canExecute(proposal({ payloadHash: hash }), approval({ payloadHash: hash }), NOW), hash).toBe(false);
+    }
+  });
+
+  it("the clock must be a real Date: a look-alike object cannot switch expiry off", () => {
+    const fake = { getTime: () => 0 } as unknown as Date;
+    expect(canExecute(proposal(), approval({ expiresAt: "2026-10-06T11:00:00Z" }), fake)).toBe(false);
+    expect(canExecute(proposal(), approval(), fake)).toBe(false);
+  });
+
+  it("the policy tables cannot be edited at runtime", () => {
+    expect(Object.isFrozen(AGENT_ACTION_POLICY)).toBe(true);
+    expect(Object.isFrozen(ACTION_TARGET_TYPES)).toBe(true);
+    for (const types of Object.values(ACTION_TARGET_TYPES)) expect(Object.isFrozen(types)).toBe(true);
+    expect(() => {
+      (AGENT_ACTION_POLICY as Record<string, string>).MOVE_MONEY = "AUTONOMOUS";
+    }).toThrow(TypeError);
+  });
+
+  it("the agent can never record a payment (payments come from staff or the payment provider)", () => {
+    expect(isKnownAction("RECORD_PAYMENT")).toBe(true); // listed explicitly, not merely unknown
+    expect(policyFor("RECORD_PAYMENT")).toBe("FORBIDDEN");
+    expect(canExecute({ action: "RECORD_PAYMENT", target: { type: "INVOICE", id: "inv_1" }, payloadHash: HASH }, approval({ action: "RECORD_PAYMENT" }), NOW)).toBe(false);
+  });
+});
+
 describe("approval expiry fails closed", () => {
   it("honours a valid future expiry and rejects expired ones", () => {
     expect(canExecute(proposal(), approval({ expiresAt: "2026-10-06T13:00:00Z" }), NOW)).toBe(true);
@@ -139,6 +199,25 @@ describe("approval expiry fails closed", () => {
     expect(canExecute(proposal(), approval({ expiresAt: expiresAt as string | null | undefined }), NOW)).toBe(false);
   });
 
+  it("rejects dates that do not exist, instead of letting the parser roll them into the next month", () => {
+    // V8 reads 2027-02-30 as 2 March. With "now" in late February that rolled date is a valid future expiry.
+    const lateFeb = new Date("2027-02-20T12:00:00Z");
+    expect(Date.parse("2027-02-30T12:00:00Z")).toBeGreaterThan(lateFeb.getTime()); // the trap is real
+    for (const expiresAt of ["2027-02-30T12:00:00Z", "2027-02-29T12:00:00Z", "2027-04-31T12:00:00Z", "2027-02-27T24:30:00Z", "2027-02-27T12:00:00+25:00"]) {
+      expect(canExecute(proposal(), approval({ expiresAt }), lateFeb), expiresAt).toBe(false);
+    }
+    expect(canExecute(proposal(), approval({ expiresAt: "2027-02-28T12:00:00Z" }), lateFeb)).toBe(true);
+  });
+
+  it("is not a permanent approval: an expiry further out than the maximum window is refused", () => {
+    expect(MAX_APPROVAL_WINDOW_DAYS).toBeGreaterThan(0);
+    expect(MAX_APPROVAL_WINDOW_DAYS).toBeLessThanOrEqual(30);
+    const at = (days: number) => new Date(NOW.getTime() + days * 86_400_000).toISOString();
+    expect(canExecute(proposal(), approval({ expiresAt: at(MAX_APPROVAL_WINDOW_DAYS) }), NOW)).toBe(true);
+    expect(canExecute(proposal(), approval({ expiresAt: at(MAX_APPROVAL_WINDOW_DAYS + 1) }), NOW)).toBe(false);
+    expect(canExecute(proposal(), approval({ expiresAt: "9999-12-31T23:59:59Z" }), NOW)).toBe(false);
+  });
+
   it("denies when the clock itself is invalid", () => {
     expect(canExecute(proposal(), approval(), new Date("nonsense"))).toBe(false);
   });
@@ -154,6 +233,53 @@ describe("hashPayload", () => {
     expect(hashPayload({ a: 1 })).not.toBe(hashPayload({ a: 2 }));
     expect(hashPayload({ list: [1, 2] })).not.toBe(hashPayload({ list: [2, 1] }));
     expect(hashPayload({ price: "10.00" })).not.toBe(hashPayload({ price: "10.0" }));
+  });
+});
+
+describe("hashPayload covers everything it is given, or refuses", () => {
+  it("distinguishes Date values (a changed delivery date must void the approval)", () => {
+    const a = hashPayload({ orderId: "o1", deliveryDate: new Date("2026-10-10T00:00:00Z") });
+    const b = hashPayload({ orderId: "o1", deliveryDate: new Date("2026-12-31T00:00:00Z") });
+    expect(a).not.toBe(b);
+    // A Date and its ISO string are the same value once serialised, so they hash the same.
+    expect(a).toBe(hashPayload({ orderId: "o1", deliveryDate: "2026-10-10T00:00:00.000Z" }));
+  });
+
+  it("uses toJSON for decimal-like values (Prisma Decimal) instead of hashing their internals", () => {
+    const decimal = (text: string) => ({ s: 1, e: 1, d: [10], toJSON: () => text });
+    expect(hashPayload({ total: decimal("1000.00") })).toBe(hashPayload({ total: "1000.00" }));
+    expect(hashPayload({ total: decimal("1000.00") })).not.toBe(hashPayload({ total: decimal("900.00") }));
+  });
+
+  it.each([
+    ["Map", () => new Map([["a", 1]])],
+    ["Set", () => new Set([1, 2])],
+    ["class instance", () => new (class Money { amount = 5; })()],
+    ["undefined value", () => ({ a: undefined })],
+    ["undefined in a list", () => [1, undefined]],
+    ["NaN", () => ({ a: Number.NaN })],
+    ["Infinity", () => ({ a: Number.POSITIVE_INFINITY })],
+    ["bigint", () => ({ a: BigInt(1) })],
+    ["function", () => ({ a: () => 1 })],
+    ["symbol", () => ({ a: Symbol("x") })],
+    ["invalid Date", () => ({ a: new Date("nonsense") })],
+    ["undefined itself", () => undefined],
+    ["circular reference", () => { const loop: Record<string, unknown> = {}; loop.self = loop; return loop; }],
+  ])("refuses a payload containing a %s rather than silently hashing it as something else", (_label, make) => {
+    expect(() => hashPayload(make())).toThrow();
+    expect(payloadMatchesHash(make(), HASH)).toBe(false);
+  });
+
+  it("still accepts explicit null and plain nested data", () => {
+    expect(() => hashPayload(null)).not.toThrow();
+    expect(hashPayload({ a: null })).not.toBe(hashPayload({}));
+    expect(hashPayload({ a: [1, { b: "x" }], c: true })).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("payloadMatchesHash is true only for the exact content that was hashed", () => {
+    expect(payloadMatchesHash(PAYLOAD, HASH)).toBe(true);
+    expect(payloadMatchesHash({ ...PAYLOAD, total: "900.00" }, HASH)).toBe(false);
+    expect(payloadMatchesHash(PAYLOAD, "")).toBe(false);
   });
 });
 
@@ -174,14 +300,29 @@ describe("policy and Prisma schema stay in step", () => {
     for (const field of ["quotationId", "orderId", "invoiceId", "leadId", "customerId"]) expect(model, field).toMatch(new RegExp(`\\n\\s*${field}\\s+String\\?`));
   });
 
-  it("every action's target types are ones the schema can express", () => {
-    const expressible = new Set(["QUOTATION", "ORDER", "INVOICE", "LEAD", "CUSTOMER"]);
+  it("every action's target types are ones the schema can express — read from the ApprovalRequest foreign keys, not a copy", async () => {
+    const schema = await readFile("prisma/schema.prisma", "utf8");
+    const model = /model ApprovalRequest \{([\s\S]*?)\n\}/.exec(schema)?.[1] ?? "";
+    const expressible = [...model.matchAll(/\n\s*(\w+)Id\s+String\?/g)]
+      .map((m) => m[1]!)
+      // decidedById is the approver, not a target
+      .filter((field) => field !== "decidedBy")
+      .map((field) => field.toUpperCase());
+    expect([...expressible].sort()).toEqual([...APPROVAL_TARGET_TYPES].sort());
     for (const [action, types] of Object.entries(ACTION_TARGET_TYPES)) {
       expect(types.length, action).toBeGreaterThan(0);
-      for (const type of types) expect(expressible.has(type), `${action} → ${type}`).toBe(true);
+      for (const type of types) expect(expressible, `${action} → ${type}`).toContain(type);
     }
     // ...and every owner-approval action has a target rule.
     expect(Object.keys(ACTION_TARGET_TYPES).sort()).toEqual([...approvalActions].sort());
+  });
+
+  it("ApprovalStatus and AdminRole enums equal the values the policy understands", async () => {
+    const schema = await readFile("prisma/schema.prisma", "utf8");
+    const values = (name: string) =>
+      (new RegExp(`enum ${name} \\{([^}]*)\\}`).exec(schema)?.[1] ?? "").split("\n").map((line) => line.trim()).filter(Boolean).sort();
+    expect(values("ApprovalStatus")).toEqual([...APPROVAL_STATUSES].sort());
+    expect(values("AdminRole")).toEqual([...APPROVER_ROLES].sort());
   });
 });
 
@@ -219,7 +360,28 @@ describe("sales workflow", () => {
     expect(nextStages("OWNER_APPROVED")).toEqual(["ORDER_CONFIRMED", "QUOTE_DRAFTED", "CLOSED_LOST"]);
   });
 
-  it("lets a deal be closed as lost up to the owner's approval, but not after an order exists (that needs CANCEL_ORDER approval)", () => {
+  it("treats unknown or prototype-ish stage names as 'no', never as an error or a function", () => {
+    for (const bad of ["constructor", "__proto__", "toString", "hasOwnProperty", "", "enquiry_received"]) {
+      expect(canTransition(bad as SalesStageId, "REQUIREMENT_UNDERSTOOD"), bad).toBe(false);
+      expect(canTransition("ENQUIRY_RECEIVED", bad as SalesStageId), bad).toBe(false);
+      expect(nextStages(bad as SalesStageId), bad).toEqual([]);
+    }
+  });
+
+  it("does not let the AI agent enter a stage that belongs to someone else (payment, owner decisions, closing a deal)", () => {
+    const entered = (to: SalesStageId) => nextStageSources(to).some((from) => canTransition(from, to, "AI_AGENT"));
+    for (const stage of SALES_STAGES) {
+      expect(entered(stage.id), stage.id).toBe(stage.actor === "AI_AGENT");
+    }
+    expect(entered("CLOSED_LOST")).toBe(false);
+    expect(canTransition("INVOICED", "PAYMENT_RECEIVED", "AI_AGENT")).toBe(false);
+    // The same move is fine for the people and systems it belongs to — and without an actor the pure graph applies.
+    expect(canTransition("INVOICED", "PAYMENT_RECEIVED", "SYSTEM")).toBe(true);
+    expect(canTransition("INVOICED", "PAYMENT_RECEIVED", "OWNER")).toBe(true);
+    expect(canTransition("INVOICED", "PAYMENT_RECEIVED")).toBe(true);
+  });
+
+  it("lets a deal be closed as lost any time before an order exists, but not after (that needs CANCEL_ORDER approval)", () => {
     for (const id of ["ENQUIRY_RECEIVED", "REQUIREMENT_UNDERSTOOD", "CATALOGUE_CHECKED", "QUANTITY_COLLECTED", "QUOTE_DRAFTED", "OWNER_APPROVED"] as const) {
       expect(canTransition(id, "CLOSED_LOST"), id).toBe(true);
     }

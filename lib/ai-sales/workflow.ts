@@ -73,7 +73,9 @@ const STAGE_BY_ID = new Map<SalesStageId, SalesStage>([...SALES_STAGES, CLOSED_S
 /**
  * Allowed moves between stages. Mostly linear, with deliberate exceptions:
  *  - a draft can be revised (QUOTE_DRAFTED → QUOTE_DRAFTED) and the owner can send it back for revision,
- *  - a deal can be closed as lost any time up to the owner's approval of the quotation,
+ *  - a deal can be closed as lost any time before an order exists — including after the quotation went out and
+ *    the customer declined. CLOSED_LOST is final: a customer who comes back raises a NEW enquiry (new lead /
+ *    enquiry record), so the history of the lost deal is never rewritten,
  *  - once an order exists it cannot be "closed" by a stage move — cancelling an order is the owner-approved
  *    CANCEL_ORDER action, not a pipeline shortcut,
  *  - a follow-up can start a new enquiry (repeat order).
@@ -81,6 +83,11 @@ const STAGE_BY_ID = new Map<SalesStageId, SalesStage>([...SALES_STAGES, CLOSED_S
  *
  * OWNER_APPROVED stands for "the owner approved sending this quotation": the quotation's own status
  * (SENT → ACCEPTED) tracks the customer's reply before ORDER_CONFIRMED.
+ *
+ * Approvals and stages: entering a gated stage RECORDS the owner's decision, and the gated action itself consumes the
+ * approval (`executedAt`) — the quotation is actually SENT under SEND_QUOTATION, the order CONFIRMED under
+ * CONFIRM_ORDER, and so on. DELIVERED stands for the owner's commitment to deliver (SCHEDULE_DELIVERY); noting later
+ * that the goods physically arrived is a status on the Order, not another gated stage.
  */
 const TRANSITIONS: Record<SalesStageId, readonly SalesStageId[]> = {
   ENQUIRY_RECEIVED: ["REQUIREMENT_UNDERSTOOD", "CLOSED_LOST"],
@@ -97,6 +104,11 @@ const TRANSITIONS: Record<SalesStageId, readonly SalesStageId[]> = {
   CLOSED_LOST: [],
 };
 
+function transitionsFrom(from: string): readonly SalesStageId[] {
+  // Object.hasOwn: "constructor" / "__proto__" must not resolve to something on Object.prototype.
+  return typeof from === "string" && Object.hasOwn(TRANSITIONS, from) ? TRANSITIONS[from as SalesStageId] : [];
+}
+
 export function getStage(id: SalesStageId): SalesStage {
   const stage = STAGE_BY_ID.get(id);
   if (!stage) throw new Error(`Unknown sales stage: ${id}`);
@@ -104,11 +116,18 @@ export function getStage(id: SalesStageId): SalesStage {
 }
 
 export function nextStages(from: SalesStageId): readonly SalesStageId[] {
-  return TRANSITIONS[from];
+  return transitionsFrom(from);
 }
 
-export function canTransition(from: SalesStageId, to: SalesStageId): boolean {
-  return TRANSITIONS[from].includes(to);
+/**
+ * May the pipeline move `from` → `to`? Without `actor` this is the pure graph. With `actor`, the AI agent may only
+ * enter stages that are the agent's own work: it cannot record a payment, take the owner's decisions or close a
+ * deal. (Stages that need the owner additionally need `canExecute` with an approval — see policy.ts.)
+ */
+export function canTransition(from: SalesStageId, to: SalesStageId, actor?: Actor): boolean {
+  if (!transitionsFrom(from).includes(to)) return false;
+  if (actor === "AI_AGENT") return STAGE_BY_ID.get(to)?.actor === "AI_AGENT";
+  return true;
 }
 
 /** True when moving INTO `to` needs an approved ApprovalRequest from the owner. */
