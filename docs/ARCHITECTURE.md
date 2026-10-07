@@ -104,11 +104,11 @@ Design notes:
 1. Provision PostgreSQL (Neon, Supabase, Railway, RDS…); set `DATABASE_URL`.
 2. `npm i @prisma/client`, add `@prisma/adapter-pg` per the Prisma 7 docs, `npx prisma migrate dev --name init`.
 3. Implement `PrismaCatalogueRepository` and `PrismaEnquiryRepository` against the interfaces in `lib/repositories/types.ts`. The enquiry implementation upserts a `Lead` by phone, then creates the `Enquiry` and its `EnquiryItem`s in one transaction.
-4. In `lib/repositories/index.ts`, return the Prisma repositories when `DATABASE_URL` is set.
-5. Write a one-off script that loads `data/categories.ts` / `data/products.ts` (once the owner has confirmed them) and any `.data/enquiries.jsonl` into the database.
+4. **Done in code:** `lib/repositories/index.ts` returns `PrismaEnquiryRepository` whenever `DATABASE_URL` is set, and `PrismaCatalogueRepository` when `CATALOGUE_SOURCE=database`. Both use `lib/db/client.ts` (server-only, pooled `pg` connection, tiny pool per serverless instance). The catalogue queries use explicit `select`s of public columns only — prices, SKU, stock, HSN and GST can never reach a page — and tests (against a real PostgreSQL) enforce it. Public pages re-generate every 5 minutes (`revalidate = 300`), so product edits appear without a redeploy.
+5. `npm run db:seed` (dry run first) loads the owner-supplied categories, brands and five products (`data/`) into the database — create-only, never overwriting. Any enquiries already in `.data/enquiries.jsonl` would need a one-off import; none exist yet.
 6. Replace `StorageUnavailableError` handling only if you want different wording — the WhatsApp fallback already works for any store failure.
 
-No page or component changes are required.
+No page or component changes were required.
 
 ## 3. The enquiry flow
 

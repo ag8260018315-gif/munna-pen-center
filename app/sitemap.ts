@@ -2,6 +2,9 @@ import type { MetadataRoute } from "next";
 import { getCatalogue } from "@/lib/repositories";
 import { absoluteUrl } from "@/lib/seo";
 
+/** Re-generate at most every 5 minutes, so products the owner edits in the admin appear without a redeploy. */
+export const revalidate = 300;
+
 /** Lists every public, indexable URL. Products and categories come from the catalogue repository, so new ones appear automatically. */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const catalogue = getCatalogue();

@@ -45,12 +45,6 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Unit tests
-        run: npm test
-
-      - name: Validate database schema
-        run: npm run db:validate
-
       - name: Migration applies to PostgreSQL and its rules hold
         env:
           PGPASSWORD: ci-only-password
@@ -62,6 +56,14 @@ jobs:
           SQL
           psql -h localhost -U postgres -v ON_ERROR_STOP=1 -q -f prisma/migrations/0001_init/migration.sql
           psql -h localhost -U postgres -v ON_ERROR_STOP=1 -q -t -f prisma/tests/migration-checks.sql
+
+      - name: Unit tests (including the database repositories, against the throwaway PostgreSQL)
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:ci-only-password@localhost:5432/postgres
+        run: npm test
+
+      - name: Validate database schema
+        run: npm run db:validate
 
       - name: Build
         run: npm run build

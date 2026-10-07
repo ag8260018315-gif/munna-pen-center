@@ -127,3 +127,6 @@ There is no Supabase-user-level access at all. Every operation happens in the Ne
 1. Create the Supabase project; copy `DATABASE_URL` (pooled), `DIRECT_URL` (direct), `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` into Vercel → Settings → Environment Variables (and `.env.local` for local work). Never commit them.
 2. With `DIRECT_URL` set in your shell: `npx prisma migrate deploy`.
 3. `TEST_DATABASE_URL=<a throwaway database, NOT production> npm run db:test-migration`.
+4. `npm run db:seed` (dry run) and then `npm run db:seed -- --apply` to load the owner-supplied categories, brands and the five products. Only after that set `CATALOGUE_SOURCE=database` in Vercel.
+
+**Approval:** the owner approved this migration and its design on 2026-10-07 (staging first). Nothing has been applied to any Supabase project yet.

@@ -13,6 +13,9 @@ import { getCatalogue } from "@/lib/repositories";
 import { pageMetadata } from "@/lib/seo";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 
+/** Re-generate at most every 5 minutes, so products the owner edits in the admin appear without a redeploy. */
+export const revalidate = 300;
+
 type Params = Promise<{ slug: string }>;
 
 export async function generateStaticParams() {

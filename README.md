@@ -28,6 +28,7 @@ npm run dev                     # http://localhost:3000
 | `npm run smoke` | Fetches every route of a **running** site and checks status, title, one `<h1>`, alt text, 404s, admin closed. `npm run smoke -- http://localhost:3100`, or `-- --dev` against `next dev` |
 | `npm run enquiries` | Prints enquiries saved by the website (`-- --json` for raw JSON, `-- 5` for the latest 5) |
 | `npm run db:validate` | Validates `prisma/schema.prisma` (works offline) |
+| `npm run db:seed` | Loads the owner-supplied categories, brands and five products into the database. **Dry run by default**; `-- --apply` writes, and only rows that are missing (never overwrites). Uses `DIRECT_URL` / `DATABASE_URL` from your shell or `.env.local` |
 | `npm run db:test-migration` | Runs `prisma/tests/migration-checks.sql` against the throwaway database in `TEST_DATABASE_URL` (never production). CI does this on every push |
 
 ## What Version 1 includes
@@ -53,6 +54,8 @@ No database connection, no admin sign-in, no AI agent, no WhatsApp Business API,
 1. A visitor submits a form → a **server action** validates it (zod) → saves it through the `EnquiryRepository`.
 2. V1 stores enquiries as one JSON object per line in **`.data/enquiries.jsonl`** (override with `ENQUIRY_DATA_DIR`). Read them with `npm run enquiries`.
 3. If saving fails — or the store does not answer within 8 seconds — the visitor is **never told it worked**: they see an error and a one-tap **WhatsApp** button with their enquiry already written out.
+
+**With a database (`DATABASE_URL` set):** enquiries are saved to Supabase instead of the file — each becomes a *Lead* plus an *Enquiry* with its product lines, in one transaction (a returning visitor with the same phone and name reuses their lead; an existing lead is never edited). Until the admin dashboard exists, read them in the Supabase Table Editor (`Enquiry`, `Lead`). `npm run enquiries` reads only the file store. The public catalogue stays on the built-in lists until you set `CATALOGUE_SOURCE=database` (do that after loading real products, so the site never looks empty).
 
 ⚠ **Hosting matters — and the plan is Vercel + Supabase.** The file store needs a server with a **persistent disk**. **Vercel's filesystem is read-only/ephemeral**, so on Vercel *every submission would fall back to WhatsApp*. Before launching on Vercel, do Phase 2: connect Supabase PostgreSQL behind the repository interfaces (`PrismaEnquiryRepository`) — that is exactly what the repository layer is for. Until then use a host with a persistent disk, or accept WhatsApp-only enquiries.
 
@@ -134,4 +137,4 @@ docs/                 Architecture, AI sales agent, launch checklist
 
 ## Verified before hand-off
 
-`npm run check` (typecheck, ESLint, 256 unit tests) · production build · `npm run smoke` (41 routes) · 33-step browser run through search, enquiry list, validation errors, submissions, persistence, honeypot and the mobile bar · axe-core WCAG 2.2 AA on 10 pages × 2 viewports.
+`npm run check` (typecheck, ESLint, 268 unit tests (11 of them run against a throwaway PostgreSQL)) · production build · `npm run smoke` (41 routes) · 33-step browser run through search, enquiry list, validation errors, submissions, persistence, honeypot and the mobile bar · axe-core WCAG 2.2 AA on 10 pages × 2 viewports.

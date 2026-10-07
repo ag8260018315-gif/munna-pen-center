@@ -10,6 +10,9 @@ import { pageSeo } from "@/content/seo";
 import { getCatalogue } from "@/lib/repositories";
 import { pageMetadata } from "@/lib/seo";
 
+/** Re-generate at most every 5 minutes, so products the owner edits in the admin appear without a redeploy. */
+export const revalidate = 300;
+
 export const metadata = pageMetadata({ ...pageSeo.home, absoluteTitle: true, path: "/" });
 
 export default async function HomePage() {

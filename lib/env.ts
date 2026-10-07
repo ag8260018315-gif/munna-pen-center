@@ -25,12 +25,23 @@ const optionalGstin = z.preprocess(
   z.string().regex(GSTIN_PATTERN, "not a valid GSTIN").optional(),
 );
 
+/** `KEY=` (empty) = unset; otherwise one of the listed values. */
+const optionalChoice = <T extends [string, ...string[]]>(values: T) =>
+  z.preprocess((value) => (value === "" ? undefined : value), z.enum(values).optional());
+
 export const serverEnvSchema = z.object({
   /** The business GSTIN (shown in the footer / About page when set; used on invoices in Phase 4). Never put it in source. */
   BUSINESS_GSTIN: optionalGstin,
 
   /** Where V1 stores enquiries (JSONL). Needs a persistent disk. */
   ENQUIRY_DATA_DIR: optionalString,
+
+  /**
+   * Where the PUBLIC catalogue (categories, brands, products) is read from. Default "static" = the built-in lists in
+   * data/. Switch to "database" only after the owner has loaded real products into the database — an empty database
+   * would make the site look empty. (Enquiries do not use this: they go to the database whenever DATABASE_URL is set.)
+   */
+  CATALOGUE_SOURCE: optionalChoice(["static", "database"]),
 
   /** Phase 2 — Supabase PostgreSQL. DATABASE_URL = pooled connection (app runtime on Vercel); DIRECT_URL = direct connection (migrations). */
   DATABASE_URL: optionalUrl,
