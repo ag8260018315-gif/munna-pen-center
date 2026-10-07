@@ -32,6 +32,8 @@ export interface AdminSection {
   /** Prisma models this section will read and write. */
   entities: readonly string[];
   phase: 2 | 3 | 4;
+  /** True once the screens exist. */
+  available: boolean;
   /** What must exist first. */
   requires: readonly string[];
 }
@@ -39,6 +41,7 @@ export interface AdminSection {
 export const ADMIN_SECTIONS: readonly AdminSection[] = [
   {
     slug: "dashboard",
+    available: true,
     label: "Dashboard",
     icon: "dashboard",
     summary: "Today's enquiries, quotations awaiting approval, open follow-ups and orders in progress.",
@@ -48,6 +51,7 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
   },
   {
     slug: "products",
+    available: true,
     label: "Products",
     icon: "products",
     summary: "Add, edit, deactivate and publish products: SKU, brand, category, unit, pack size, purchase / wholesale / retail price, GST rate, HSN code, stock, minimum order quantity and image.",
@@ -57,6 +61,7 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
   },
   {
     slug: "brands",
+    available: true,
     label: "Brands",
     icon: "brands",
     summary: "Add and edit the brands you supply (kept separate from products), and choose which are shown on the website.",
@@ -66,6 +71,7 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
   },
   {
     slug: "categories",
+    available: true,
     label: "Categories",
     icon: "categories",
     summary: "Manage product categories, their order and their SEO titles and descriptions.",
@@ -75,15 +81,17 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
   },
   {
     slug: "inventory",
+    available: true,
     label: "Inventory",
     icon: "inventory",
-    summary: "Track stock levels once the business decides how it wants to manage stock. No stock is shown publicly until then.",
-    entities: ["InventoryItem (to be added)"],
-    phase: 4,
-    requires: ["Database", "A stock-keeping process agreed with the owner"],
+    summary: "Update stock quantities per product. Leave a box blank if you do not track stock for that product. No stock is shown publicly.",
+    entities: ["Product"],
+    phase: 2,
+    requires: ["Database", "Admin sign-in"],
   },
   {
     slug: "customers",
+    available: false,
     label: "Customers",
     icon: "customers",
     summary: "Organisations the business has quoted or sold to: contacts, GSTIN, addresses and history.",
@@ -93,6 +101,7 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
   },
   {
     slug: "leads",
+    available: false,
     label: "Leads",
     icon: "leads",
     summary: "People who have enquired but not yet been quoted, with status, owner and notes.",
@@ -102,6 +111,7 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
   },
   {
     slug: "enquiries",
+    available: true,
     label: "Enquiries",
     icon: "enquiries",
     summary: "Every bulk enquiry, quote request and contact message, from the website, WhatsApp, phone or the AI agent.",
@@ -111,6 +121,7 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
   },
   {
     slug: "quotes",
+    available: false,
     label: "Quotes",
     icon: "quotes",
     summary: "Draft, price, approve and send wholesale quotations. Prices are always entered or approved by the owner.",
@@ -120,6 +131,7 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
   },
   {
     slug: "orders",
+    available: false,
     label: "Orders",
     icon: "orders",
     summary: "Confirmed orders from accepted quotations: processing, dispatch, transport details and delivery.",
@@ -129,6 +141,7 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
   },
   {
     slug: "invoices",
+    available: false,
     label: "Invoices",
     icon: "invoices",
     summary: "GST invoices generated from orders, issued only after owner approval.",
@@ -138,6 +151,7 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
   },
   {
     slug: "payments",
+    available: false,
     label: "Payments",
     icon: "payments",
     summary: "Record and reconcile payments against invoices. The AI agent never records or moves money.",
@@ -147,6 +161,7 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
   },
   {
     slug: "follow-ups",
+    available: false,
     label: "Follow-ups",
     icon: "follow-ups",
     summary: "Reminders to call, message or chase payments, and repeat-order prompts.",
@@ -156,6 +171,7 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
   },
   {
     slug: "ai-sales-agent",
+    available: false,
     label: "AI Sales Agent",
     icon: "ai",
     summary: "Agent conversations, drafts waiting for review, and the approval queue where the owner decides on commercial actions.",
@@ -165,6 +181,7 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
   },
   {
     slug: "settings",
+    available: false,
     label: "Settings",
     icon: "settings",
     summary: "Business details, GST information, invoice numbering, staff accounts and integrations.",

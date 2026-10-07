@@ -158,6 +158,12 @@ export async function updateProduct(id: string, raw: Record<string, string>): Pr
   if (!existing) return { ok: false, message: "That product no longer exists." };
 
   if (session.role !== "OWNER") {
+    // A staff form has these boxes disabled, so the browser does not send them: keep what is stored. If they ARE sent
+    // (someone POSTing directly) and differ, refuse below.
+    const keep = <K extends (typeof PRICE_FIELDS)[number]>(key: K) => {
+      if (!(key in raw)) (input as Record<string, unknown>)[key] = existing[key]?.toString() ?? null;
+    };
+    PRICE_FIELDS.forEach(keep);
     const sameNumber = (a: string | null, b: string | null) => (a === null || b === null ? a === b : Number(a) === Number(b));
     const changed =
       input.hsnCode !== existing.hsnCode ||

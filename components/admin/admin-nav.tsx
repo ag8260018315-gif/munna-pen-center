@@ -27,6 +27,7 @@ export function AdminNav() {
               >
                 <Icon className="size-4.5 shrink-0" aria-hidden="true" />
                 {section.label}
+                {!section.available && <span className="ml-auto rounded-full bg-white/10 px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide text-brand-100">Soon</span>}
               </Link>
             </li>
           );

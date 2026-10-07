@@ -155,10 +155,15 @@ describe.skipIf(!url)("admin catalogue on a real database", () => {
     expect(await admin.updateProduct(made.id, form({ retailPrice: "9" }))).toMatchObject({ ok: false });
     expect(await admin.updateProduct(made.id, form({ hsnCode: "9608" }))).toMatchObject({ ok: false });
     role = "OWNER";
-    await admin.updateProduct(made.id, form({ retailPrice: "9.00" }));
+    await admin.updateProduct(made.id, form({ retailPrice: "9.00", hsnCode: "9608", gstRatePercent: "12" }));
     role = "STAFF";
+    // a staff browser does not send the disabled price boxes: the stored values must survive an edit
+    expect(await admin.updateProduct(made.id, form({ name: "ITest A Pen v3" }))).toMatchObject({ ok: true });
+    expect(await db.product.findUniqueOrThrow({ where: { id: made.id } })).toMatchObject({ name: "ITest A Pen v3", hsnCode: "9608" });
+    expect((await db.product.findUniqueOrThrow({ where: { id: made.id } })).retailPrice?.toString()).toBe("9");
+    expect((await db.product.findUniqueOrThrow({ where: { id: made.id } })).gstRatePercent?.toString()).toBe("12");
     // same value written differently is not a change
-    expect(await admin.updateProduct(made.id, form({ retailPrice: "9" }))).toMatchObject({ ok: true });
+    expect(await admin.updateProduct(made.id, form({ name: "ITest A Pen", retailPrice: "9", hsnCode: "9608", gstRatePercent: "12" }))).toMatchObject({ ok: true });
     expect((await db.product.findUniqueOrThrow({ where: { id: made.id } })).name).toBe("ITest A Pen");
   });
 

@@ -3,7 +3,10 @@ import Link from "next/link";
 import { ADMIN_ICONS } from "@/components/admin/admin-icons";
 import { AGENT_ACTION_POLICY, SALES_STAGES } from "@/lib/ai-sales";
 import { ADMIN_SECTIONS, adminHref } from "@/lib/admin/sections";
+import { DatabaseRequired } from "@/components/admin/ui";
+import { getDashboardCounts } from "@/lib/admin/catalogue-admin";
 import { requireAdmin } from "@/lib/auth/guard";
+import { isDatabaseConfigured } from "@/lib/db/client";
 import { cn } from "@/lib/cn";
 
 const ACTOR_LABEL = { CUSTOMER: "Customer", AI_AGENT: "AI agent", OWNER: "Owner", SYSTEM: "System" } as const;
@@ -14,16 +17,43 @@ const approvalActions = Object.entries(AGENT_ACTION_POLICY)
 
 export default async function AdminDashboardPage() {
   await requireAdmin();
+  const counts = isDatabaseConfigured() ? await getDashboardCounts() : null;
+  const tiles = counts
+    ? [
+        { label: "New enquiries", value: counts.newEnquiries, href: "/admin/enquiries?status=NEW" },
+        { label: "All enquiries", value: counts.enquiries, href: "/admin/enquiries" },
+        { label: "Active products", value: counts.activeProducts, href: "/admin/products?status=ACTIVE" },
+        { label: "Draft products", value: counts.draftProducts, href: "/admin/products?status=DRAFT" },
+        { label: "Out of stock", value: counts.outOfStock, href: "/admin/inventory" },
+        { label: "Brands", value: counts.brands, href: "/admin/brands" },
+        { label: "Categories", value: counts.categories, href: "/admin/categories" },
+      ]
+    : [];
 
   return (
     <div className="mx-auto grid max-w-6xl gap-10">
       <div>
         <h1 className="text-3xl font-extrabold">Admin dashboard</h1>
-        <p className="mt-2 max-w-3xl text-muted">
-          This is the foundation of the future admin dashboard. No business data is shown here yet — connecting the database and sign-in is the next phase.
-          Today, enquiries from the website are saved by the server (see the README).
-        </p>
+        <p className="mt-2 max-w-3xl text-muted">Enquiries, products, brands, categories and stock are live. Quotations, orders, invoices and payments come next.</p>
       </div>
+
+      {counts ? (
+        <section aria-labelledby="counts-title">
+          <h2 id="counts-title" className="text-xl font-extrabold">At a glance</h2>
+          <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {tiles.map((t) => (
+              <li key={t.label}>
+                <Link href={t.href} className="block rounded-xl border border-line bg-white p-4 hover:border-brand-400">
+                  <span className="block text-3xl font-extrabold">{t.value}</span>
+                  <span className="text-sm font-semibold text-muted">{t.label}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : (
+        <DatabaseRequired />
+      )}
 
       <section aria-labelledby="pipeline-title">
         <h2 id="pipeline-title" className="text-xl font-extrabold">
