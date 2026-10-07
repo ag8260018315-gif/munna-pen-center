@@ -1,0 +1,45 @@
+# Before you launch — things only the owner can confirm
+
+The site never invents facts, so anything not supplied is either hidden or shown as a neutral placeholder. Work through this list; each item says where to change it.
+
+## Must do
+
+- [ ] **Domain name** — set `NEXT_PUBLIC_SITE_URL` (at build time) so canonical URLs, the sitemap and social previews are correct.
+- [ ] **Hosting that keeps enquiries** — a server with a persistent disk, **or** connect the database first (see README → *How enquiries work*). On serverless hosting, form submissions can only fall back to WhatsApp.
+- [ ] **Product list** — review `data/products.ts`. It contains generic product *types* so the catalogue is browsable; remove anything you don’t supply, add what’s missing. Add brands, pack sizes (`packInfo`) and photos only when confirmed.
+- [ ] **Where enquiries are read** — until the admin is built, run `npm run enquiries` on the server (or check `.data/enquiries.jsonl`) **and** keep an eye on WhatsApp. Decide who checks, and how often.
+
+## Business details to add (`lib/config/site.ts`)
+
+- [ ] **GSTIN** — shown in the footer and About page once added. (The site already says “GST Registered”, as you confirmed.)
+- [ ] **Full address & PIN code** — currently only “Dhanbad, Jharkhand, India”.
+- [ ] **Email address** — shown in the footer and Contact page when set.
+- [ ] **Business hours** — optional.
+- [ ] **Social profiles** — optional.
+
+## Content to review
+
+- [ ] **About page** (`content/about.ts`) — add an optional `story` and `established` year *only if you want them shown*.
+- [ ] **Home page wording** (`content/home.ts`) — especially “Why Munna Pen Center”; remove anything you can’t stand behind.
+- [ ] **FAQ answers** on Bulk Orders (`app/(site)/bulk-orders/page.tsx`) — confirm each answer matches how you actually work.
+- [ ] **Delivery wording** — the site promises no delivery times. When you have real logistics information (transporters, typical lead times, free-delivery thresholds), say so deliberately in `content/home.ts` and the FAQ.
+- [ ] **Logo** — review the mark and lockups in `public/brand/`. If you commission a designer, replace the SVGs and `components/brand/logo.tsx`.
+
+## Legal & trust
+
+- [ ] **Privacy policy** and **terms** pages — the forms say “We use these details only to respond to your enquiry”; make sure that is true, and publish a proper privacy policy (India’s DPDP Act applies to personal data you collect). Have these written/reviewed by a professional.
+- [ ] **Do not add** customer logos, testimonials, “years in business” or certifications unless they are real and you have permission. A test (`tests/content-integrity.test.ts`) fails the build if invented-sounding claims creep in.
+
+## Search & marketing
+
+- [ ] **Google Business Profile** for Munna Pen Center, Dhanbad — the biggest single lever for “wholesale stationery Dhanbad”.
+- [ ] **Google Search Console** — verify the domain, submit `https://<your-domain>/sitemap.xml`.
+- [ ] **WhatsApp Business app** on 79790 25166 — set a greeting and away message now; the website’s WhatsApp buttons open a chat with this number.
+- [ ] Product **photographs** — real photos of what you stock beat any placeholder: `public/images/products/` + `imageUrl` / `imageAlt`.
+
+## Later phases need from you
+
+- Price list / pricing rules (for quotations and the AI agent)
+- Invoice series, tax rates and HSN codes (for GST invoices)
+- Payment methods you accept
+- Which actions you are happy for an AI assistant to prepare, and which you always want to approve yourself (the defaults in `lib/ai-sales/policy.ts` are conservative)

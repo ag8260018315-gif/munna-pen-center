@@ -1,0 +1,195 @@
+@import "tailwindcss";
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Design tokens — Munna Pen Center
+   Primary: deep blue-indigo ("brand"). CTA: amber ("accent") for strong
+   contrast on both white and indigo. WhatsApp actions use an accessible green.
+   ────────────────────────────────────────────────────────────────────────── */
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: var(--font-manrope), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  --color-brand-50: #f2f5fe;
+  --color-brand-100: #e4eafc;
+  --color-brand-200: #c9d5f8;
+  --color-brand-300: #a0b3f0;
+  --color-brand-400: #6f89e3;
+  --color-brand-500: #4c66d2;
+  --color-brand-600: #3a4eb8;
+  --color-brand-700: #313f95;
+  --color-brand-800: #2b367a;
+  --color-brand-900: #262f62;
+  --color-brand-950: #161b3b;
+
+  --color-accent-50: #fff9eb;
+  --color-accent-100: #fef0c7;
+  --color-accent-200: #fde08a;
+  --color-accent-300: #fccb4d;
+  --color-accent-400: #fbb724;
+  --color-accent-500: #f59e0b;
+  --color-accent-600: #d98b06;
+  --color-accent-700: #b45309;
+
+  --color-whatsapp: #0f7a41;
+  --color-whatsapp-dark: #0b6535;
+
+  --color-ink: #0f172a;
+  --color-muted: #475569;
+  --color-line: #dfe5f1;
+  --color-surface: #f6f8fc;
+
+  --shadow-card: 0 1px 2px rgb(22 27 59 / 0.04), 0 4px 16px rgb(22 27 59 / 0.06);
+  --shadow-lift: 0 2px 4px rgb(22 27 59 / 0.05), 0 14px 32px rgb(22 27 59 / 0.12);
+
+  --animate-pulse-ring: pulse-ring 2.8s ease-out infinite;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+    scroll-padding-top: 5rem;
+  }
+
+  /* The fixed Call / WhatsApp / Get Quote bar (phones only) must never cover a focused control. */
+  @media (max-width: 767px) {
+    html {
+      scroll-padding-bottom: 4.5rem;
+    }
+  }
+
+  body {
+    background: #ffffff;
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+    color: var(--color-brand-950);
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-brand-500);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Dark surfaces get a light focus ring. */
+  .on-dark :focus-visible {
+    outline-color: #ffffff;
+  }
+
+  ::selection {
+    background: var(--color-accent-200);
+    color: var(--color-brand-950);
+  }
+}
+
+/* ── Motion ──────────────────────────────────────────────────────────────── */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@layer utilities {
+  /* Page-load entrance. Stagger with the --delay custom property. */
+  .enter {
+    animation: fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: var(--delay, 0ms);
+  }
+
+  /* Reveal on scroll — progressive enhancement; content is simply visible where unsupported. */
+  @supports (animation-timeline: view()) {
+    .reveal {
+      animation: fade-up linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 30%;
+    }
+  }
+
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    background: var(--color-brand-100);
+  }
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.6), transparent);
+    animation: shimmer 1.4s infinite;
+  }
+
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, rgb(49 63 149 / 0.06) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(49 63 149 / 0.06) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* The scroll-driven reveal exists only for on-screen scrolling. Printing never scrolls (cards would print blank),
+   and scroll-driven animations ignore animation-duration, so the reduced-motion rule below cannot reach them. */
+@media print, (prefers-reduced-motion: reduce) {
+  .reveal {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
