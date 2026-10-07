@@ -22,6 +22,13 @@ const FORBIDDEN: { pattern: RegExp; why: string }[] = [
   { pattern: /\bin stock\b|\bout of stock\b|\b\d+\s+(units?|pcs|pieces)\s+(left|available)\b/i, why: "stock claim" },
   { pattern: /same[- ]day|next[- ]day|\b\d+\s?(-|to)?\s?\d*\s?(hours?|business days?|working days?)\b|free (shipping|delivery)|guaranteed delivery/i, why: "delivery-time / free-delivery promise" },
   { pattern: /\bGSTIN[:\s]+\d{2}[A-Z]{5}\d{4}[A-Z]/i, why: "hard-coded GSTIN" },
+  // The owner named these customer groups: schools, offices, engineers, businesses, institutions, retailers.
+  // Examples beyond that list are invented specifics.
+  { pattern: /\b(hospitals?|coaching|colleges?|universit(?:y|ies)|government offices?|\btrusts\b|ngos?)\b/i, why: "customer type the owner did not name" },
+  { pattern: /one-off retail|not (?:for )?retail|minimum order|\bMOQ\b|credit terms?|cash on delivery/i, why: "sales policy the owner did not state" },
+  { pattern: /every state|each state|all (?:pin ?codes|districts)|every (?:city|town|district)|pan[- ]india network/i, why: "coverage claim beyond 'across India'" },
+  { pattern: /available for bulk|in stock|ready stock|immediately available/i, why: "availability claim" },
+  { pattern: /everything your organi[sz]ation/i, why: "range over-claim" },
 ];
 
 async function files(dir: string): Promise<string[]> {

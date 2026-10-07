@@ -54,6 +54,7 @@ export default async function CategoryPage({ params }: { params: Params }) {
       </div>
 
       <Container className="py-12 sm:py-16">
+        <p className="mb-8 text-sm text-muted">Listings are indicative — availability, brands, pack sizes and prices are confirmed on enquiry.</p>
         <ProductGrid products={items} headingLevel={2} />
 
         <nav aria-label="Other categories" className="mt-16 border-t border-line pt-10">

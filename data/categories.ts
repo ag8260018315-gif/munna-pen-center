@@ -26,7 +26,7 @@ export const categories: Category[] = [
     name: "Pencils",
     summary: "Graphite and colour pencils, mechanical pencils, erasers and sharpeners.",
     description:
-      "Pencils and related accessories for classrooms, drawing and drafting — graphite pencils, colour pencils, mechanical pencils with leads, erasers and sharpeners — available for bulk requirements.",
+      "Pencils and related accessories for classrooms, drawing and drafting — graphite pencils, colour pencils, mechanical pencils with leads, erasers and sharpeners. Ask us about bulk requirements.",
     seoTitle: "Wholesale Pencils & Erasers in India",
     seoDescription:
       "Graphite and colour pencils, mechanical pencils, erasers and sharpeners in bulk from Dhanbad, Jharkhand. Request a wholesale quote.",
@@ -38,7 +38,7 @@ export const categories: Category[] = [
     name: "School Supplies",
     summary: "Notebooks, geometry boxes, pencil boxes and everyday classroom essentials.",
     description:
-      "Classroom and student essentials for schools, coaching institutes and educational organisations — notebooks, geometry boxes, pencil boxes, colouring sets, rulers and adhesives. Ideal for term-start and institutional bulk requirements.",
+      "Classroom and student essentials for schools and educational organisations — notebooks, geometry boxes, pencil boxes, colouring sets, rulers and adhesives. Ask us about term-start and institutional bulk requirements.",
     seoTitle: "School Stationery Wholesale in India",
     seoDescription:
       "School stationery wholesale from Dhanbad: notebooks, geometry boxes, pencil boxes and classroom essentials for schools across India.",

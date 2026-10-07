@@ -23,7 +23,9 @@ interface EnquiryFormProps {
 export function EnquiryForm(props: EnquiryFormProps) {
   // Bumping the key remounts the form, which resets useActionState — used by "Submit another enquiry".
   const [formKey, setFormKey] = useState(0);
-  return <EnquiryFormInner key={formKey} {...props} onReset={() => setFormKey((key) => key + 1)} />;
+  // The URL seed (?product= / ?need=) belongs to the first form only: "Submit another enquiry" starts clean.
+  const seed = formKey === 0 ? props : { ...props, preselect: undefined, defaultProducts: undefined };
+  return <EnquiryFormInner key={formKey} {...seed} onReset={() => setFormKey((key) => key + 1)} />;
 }
 
 function EnquiryFormInner({ kind, preselect, defaultProducts, onReset }: EnquiryFormProps & { onReset: () => void }) {
@@ -32,9 +34,11 @@ function EnquiryFormInner({ kind, preselect, defaultProducts, onReset }: Enquiry
   const values = state.status === "error" ? (state.values ?? {}) : {};
 
   // The list has been sent — start the next enquiry with an empty list.
+  // Only the quote form submits the list. The Bulk Orders form is free text: clearing there would silently
+  // throw away products the visitor chose and never sent.
   useEffect(() => {
-    if (state.status === "success") enquiryList.clear();
-  }, [state.status]);
+    if (state.status === "success" && kind === "quote") enquiryList.clear();
+  }, [state.status, kind]);
 
   if (state.status === "success") {
     return (

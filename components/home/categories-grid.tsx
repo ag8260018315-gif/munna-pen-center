@@ -12,7 +12,7 @@ export function CategoriesGrid({ categories }: { categories: Category[] }) {
         <SectionHeading
           id="categories-title"
           eyebrow="Product categories"
-          title="Everything your organisation writes, files and prints with"
+          title="Stationery and office supplies for your organisation"
           description="Browse our wholesale stationery and office supply categories, or tell us what you need and we will confirm availability."
         />
         <ButtonLink href="/products" variant="secondary" className="self-start sm:self-auto">
