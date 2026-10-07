@@ -30,7 +30,7 @@ Delivery                  (owner approval for commitments)
 Follow-up / repeat order  (AI drafts; owner approves sending)
 ```
 
-Defined as data in `lib/ai-sales/workflow.ts` (stages, who acts, which need approval, which exist today) with `canTransition()` so stages can’t be skipped — e.g. a quotation cannot go from `QUOTE_DRAFTED` straight to `ORDER_CONFIRMED`. Today only `ENQUIRY_RECEIVED` is implemented (the web forms).
+Defined as data in `lib/ai-sales/workflow.ts` (stages, who acts, which need approval, which exist today) with `canTransition()` so stages can’t be skipped — e.g. a quotation cannot go from `QUOTE_DRAFTED` straight to `ORDER_CONFIRMED`. A draft can be revised (`QUOTE_DRAFTED → QUOTE_DRAFTED`), a deal can be closed as lost up to the owner’s approval (`CLOSED_LOST`), and a follow-up can restart the loop for a repeat order. Once an order exists it cannot be “closed” by a stage move: cancelling it is the owner-approved `CANCEL_ORDER` action. Every stage that needs the owner names the policy action its approval authorises (`approvalAction`). Today only `ENQUIRY_RECEIVED` is implemented (the web forms).
 
 ## 2. What the agent may and may not do
 
@@ -38,16 +38,26 @@ Defined as data in `lib/ai-sales/workflow.ts` (stages, who acts, which need appr
 
 | Policy | Actions | Meaning |
 | --- | --- | --- |
-| **AUTONOMOUS** | search catalogue · ask the customer a clarifying question · record requirement · create quotation **draft** · draft a follow-up message · summarise a lead | Read and draft only. No commercial effect. |
-| **OWNER_APPROVAL** | propose price · apply discount · send quotation · confirm order · issue invoice · request payment · schedule delivery · cancel order · send a customer message | Every one needs an `APPROVED`, unexpired `ApprovalRequest` **for that exact action**. |
+| **AUTONOMOUS** | search catalogue · record requirement · create quotation **draft** · **draft** a message to a customer · summarise a lead | Read and draft only. Nothing leaves the system and nothing is committed. |
+| **OWNER_APPROVAL** | propose price · apply discount · send quotation · confirm order · issue invoice · request payment · schedule delivery · cancel order · **send any message to a customer** | Every one needs an approval that is bound to that exact action, record and content (see below). |
 | **FORBIDDEN** | move money · refund · change payment details · edit admin users | Never, with or without “approval”. |
 | *(anything unlisted)* | — | **Denied by default.** |
 
-`canExecute(action, approval?)` is the gate. The agent runtime must call it before running any tool and refuse on `false`. It is tested for: unknown actions denied, pending/rejected/expired approvals ignored, an approval for one action not authorising another, and forbidden actions staying forbidden even when an “approved” record exists.
+> **Why drafting is autonomous but sending is not.** The gate sees only an action's *name*, not what the words say. A "clarifying question" tool that sends free text could carry a price or a delivery promise with no approval. So the agent drafts customer messages (`DRAFT_CUSTOMER_MESSAGE`) and sending any of them (`SEND_CUSTOMER_MESSAGE`) is the owner's call. Once the owner has seen real conversations, Phase 3 may add a narrow, explicit tier — e.g. owner-approved message *templates* for routine questions — as its own named policy; it must not be added by making free-text sending autonomous.
+
+`canExecute(proposed, approval?, now?)` is the gate. The agent runtime must call it before running any tool and refuse on `false`. For an owner-approval action it returns `true` only if **all** of these hold, and any doubt means no:
+
+1. the proposal names its **target record** (quotation / order / invoice / lead / customer — and that type is valid for the action) and the **hash of its exact content** (`hashPayload()` — recipient, lines, prices, totals, message text);
+2. the approval is `APPROVED`, for the **same action**, the **same record** and the **same content hash** — so an approval for quotation A does not cover quotation B, and changing a price or a word after approval voids it;
+3. it was decided by the **owner** (not staff, not the agent);
+4. it has **not already been executed** (`executedAt`) — one approval, one execution. The executor must set `executedAt` in the same database transaction as the action itself, so a retry or a replay cannot use it twice;
+5. it carries a **valid, explicit expiry** (ISO 8601 with a time-zone offset) that is still in the future. A missing, empty, garbled or ambiguous expiry (`"25/09/2026"`, no zone, date only) authorises nothing — the gate fails closed.
+
+`FORBIDDEN` and unknown actions are denied whatever approval is presented. This is covered by tests that attack each rule (wrong record, changed price, staff approval, replay, bad expiry, spelling variants such as `send_quotation`).
 
 ### Pricing
 
-The agent **never decides a price**. Prices come only from (a) an owner-maintained price list entered in the admin, or (b) the owner typing/approving a figure. A quotation draft with missing prices stays a draft and raises an `ApprovalRequest` (`PROPOSE_PRICE`) rather than guessing. Discounts, special rates and credit terms are always owner decisions.
+The agent **never decides a price**. Prices come only from (a) an owner-maintained price list entered in the admin, or (b) the owner typing/approving a figure. A quotation draft with missing prices stays a draft and raises an `ApprovalRequest` (`PROPOSE_PRICE`) rather than guessing — which is why `QuotationItem.unitPrice`, `gstRatePercent` and `lineTotal` (and the quotation totals) are **nullable** in the schema: “not priced yet” must be representable without writing `0` (which would look like “free”) or inventing a GST rate. A quotation cannot leave `DRAFT` while any line is unpriced. Discounts, special rates and credit terms are always owner decisions.
 
 ## 3. Proposed runtime
 

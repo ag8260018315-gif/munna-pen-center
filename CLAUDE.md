@@ -8,7 +8,7 @@ Wholesale stationery supplier, Dhanbad, Jharkhand → all India. Next.js 16 (App
 
 1. **Never invent business facts.** No prices, stock, brands, customers, reviews, statistics, certifications, founding year, GSTIN, street address, delivery times. Unknown = `null` in `lib/config/site.ts` and omitted from the UI. `tests/content-integrity.test.ts` enforces this.
 2. **No prices on the public site.** Use “Get Wholesale Price” / “Request Quote”. `Product` has no price field on purpose.
-3. **The owner approves every commercial commitment.** `lib/ai-sales/policy.ts` is default-deny; AI may read and draft only. Never let an agent set prices, send quotations, confirm orders, issue invoices, request payment or move money without an approved `ApprovalRequest` (`canExecute`). Never make money movement possible for the agent.
+3. **The owner approves every commercial commitment.** `lib/ai-sales/policy.ts` is default-deny; AI may read and draft only. Never let an agent set prices, send quotations, confirm orders, issue invoices, request payment, send ANY message to a customer, or move money without an approved `ApprovalRequest` bound to that action, record and content (`canExecute` checks all of it); the agent may only *draft* messages. Never make money movement possible for the agent.
 4. **No secrets in client code.** New env vars go in `lib/env.ts` **and** `.env.example` (a test checks they match). Only `NEXT_PUBLIC_SITE_URL` is public.
 5. **Admin stays closed in production** until real authentication exists (`proxy.ts` + `requireAdmin()`); every admin data function must call `requireAdmin()` itself.
 

@@ -67,6 +67,8 @@ erDiagram
   Invoice ||--o{ Payment : "settled by"
   AdminUser ||--o{ Payment : records
   Quotation ||--o{ ApprovalRequest : "needs"
+  Lead ||--o{ ApprovalRequest : "needs"
+  Customer ||--o{ ApprovalRequest : "needs"
   Order ||--o{ ApprovalRequest : "needs"
   Invoice ||--o{ ApprovalRequest : "needs"
   AdminUser ||--o{ ApprovalRequest : decides
@@ -81,7 +83,11 @@ Design notes:
 - **No stock figures.** Add an `InventoryItem` model when the business has a stock process. Nothing is invented meanwhile.
 - **Lead → Customer.** A *Lead* is anyone who enquired. A *Customer* exists once the business quotes or sells to them; the lead is linked to it on conversion.
 - **GST fields are present but empty by default:** `Product.hsnCode`, `Product.gstRatePercent`, per-line `gstRatePercent`, `Invoice.cgstTotal / sgstTotal / igstTotal`, `buyerGstin`, `placeOfSupply`, `irn`. They are filled from the business’s real tax data — never guessed.
-- **`ApprovalRequest`** is the owner-approval gate (see [`AI_SALES_AGENT.md`](AI_SALES_AGENT.md)). Its `ApprovalAction` enum mirrors the `OWNER_APPROVAL` entries of `lib/ai-sales/policy.ts`; a test fails if they drift apart.
+- **`ApprovalRequest`** is the owner-approval gate (see [`AI_SALES_AGENT.md`](AI_SALES_AGENT.md)). Its `ApprovalAction` enum mirrors the `OWNER_APPROVAL` entries of `lib/ai-sales/policy.ts`; a test fails if they drift apart. It stores everything `canExecute` checks: the target record (one foreign key per record type), `payloadHash`, a mandatory `expiresAt`, and `executedAt` for single use.
+- **History is never deleted.** Lead, Customer, Enquiry, Quotation, Order, Invoice, Payment, FollowUp and ApprovalRequest are `onDelete: Restrict`; only line items cascade from their own parent. “Removing” something means a status (`LOST`, `SPAM`, `CANCELLED`, `VOID`) or anonymising personal data in place. (Otherwise deleting a quotation would also delete the only proof the owner approved sending it, and deleting an issued invoice would leave a hole in the GST series.) `tests/schema.test.ts` guards this.
+- **A draft can be unpriced.** Quotation line prices, GST rate and totals are nullable — `NULL` means “not priced yet”, never `0`. Order and invoice lines are not nullable: those values are final.
+- **GST invoices.** `Invoice.number` is `NULL` until the invoice is *issued* and is then allocated from `NumberSequence` (one row per series per financial year, e.g. `INV` / `2026-27`) inside the same transaction, so drafts never burn numbers and a rollback leaves no gap. Buyer and supplier name, address and GSTIN are **snapshotted onto the invoice** at issue time, so later edits to a Customer cannot change an invoice that has already been sent.
+- **Rules Prisma cannot express** are listed at the top of `schema.prisma` for the first migration: exactly one approval target set (CHECK), one pending approval per target (partial unique index), no quotation leaving DRAFT with an unpriced line.
 - Every document records **who created it** (`ActorType`: `ADMIN`, `AI_AGENT`, `CUSTOMER`, `SYSTEM`) so AI work is always attributable.
 
 ### Connecting the database (Phase 2 checklist)
