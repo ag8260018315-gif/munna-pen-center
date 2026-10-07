@@ -4,7 +4,6 @@ import { Logo } from "@/components/brand/logo";
 import { WhatsAppIcon } from "@/components/icons/whatsapp";
 import { Container } from "@/components/ui/section";
 import { primaryNav, quoteNav } from "@/lib/config/navigation";
-import { getBusinessGstin } from "@/lib/business";
 import { siteConfig } from "@/lib/config/site";
 import { getCatalogue } from "@/lib/repositories";
 import { buildWhatsAppUrl, whatsAppMessages } from "@/lib/whatsapp";
@@ -14,7 +13,6 @@ const linkClass = "text-brand-100 transition-colors hover:text-white";
 export async function SiteFooter() {
   const categories = await getCatalogue().listCategories();
   const { contact, location, gst } = siteConfig;
-  const gstin = getBusinessGstin();
 
   return (
     <footer className="on-dark bg-brand-950 pb-24 text-brand-100 md:pb-0">
@@ -26,7 +24,7 @@ export async function SiteFooter() {
           </p>
           {gst.registered && (
             <p className="mt-4 inline-flex items-center rounded-full border border-white/15 px-3 py-1 text-xs font-semibold text-brand-100">
-              GST Registered{gstin ? ` · GSTIN ${gstin}` : ""}
+              GST Registered
             </p>
           )}
         </div>

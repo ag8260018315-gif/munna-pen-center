@@ -55,3 +55,22 @@ describe("getBusinessGstin never breaks a page", () => {
     vi.unstubAllEnvs();
   });
 });
+
+describe("the public website never prints the GSTIN", () => {
+  it("no public page or component reads or renders it — the site says only “GST Registered”", async () => {
+    const { readdir, readFile } = await import("node:fs/promises");
+    const offenders: string[] = [];
+    async function walk(dir: string) {
+      for (const entry of await readdir(dir, { withFileTypes: true })) {
+        const full = `${dir}/${entry.name}`;
+        if (entry.isDirectory()) await walk(full);
+        else if (/\.tsx?$/.test(entry.name) && /getBusinessGstin|lib\/business|BUSINESS_GSTIN|GSTIN \$\{|GSTIN\s*[:·]/.test(await readFile(full, "utf8"))) offenders.push(full);
+      }
+    }
+    for (const dir of ["app/(site)", "components", "content"]) await walk(dir);
+    expect(offenders).toEqual([]);
+
+    const footer = await readFile("components/layout/site-footer.tsx", "utf8");
+    expect(footer).toContain("GST Registered");
+  });
+});

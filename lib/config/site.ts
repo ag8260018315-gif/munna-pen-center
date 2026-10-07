@@ -45,8 +45,9 @@ export const siteConfig = {
   },
 
   /**
-   * The business is GST registered. The GSTIN itself is deliberately NOT in source code: it is the server-only
-   * BUSINESS_GSTIN environment variable, read by `getBusinessGstin()` (lib/business.ts).
+   * The business is GST registered, and the public site says only that — it never prints the GSTIN number. The GSTIN
+   * is deliberately NOT in source code either: it is the server-only BUSINESS_GSTIN environment variable, read by
+   * `getBusinessGstin()` (lib/business.ts) for invoices and the admin later.
    */
   gst: {
     registered: true,

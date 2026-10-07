@@ -11,7 +11,7 @@ Mark everything except `NEXT_PUBLIC_SITE_URL` as **Sensitive**. Paste only the v
 | Name | When | What |
 | --- | --- | --- |
 | `NEXT_PUBLIC_SITE_URL` | always | Your real address, e.g. `https://www.yourdomain.in` (the build warns if it is missing or `localhost`) |
-| `BUSINESS_GSTIN` | optional | The 15-character GSTIN. If mistyped it is left out of the footer and a warning is logged — it never breaks the build |
+| `BUSINESS_GSTIN` | not needed yet | The 15-character GSTIN, for invoices later. **The website never shows it** (it says only "GST Registered"). If set but mistyped, a warning is logged — it never breaks the build. You can leave it out for now |
 | `DATABASE_URL` | once Supabase exists | Supabase **pooled** connection string |
 | `DIRECT_URL` | once Supabase exists | Supabase **direct** connection string (migrations only) |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | once Supabase exists | Server-side only; the service-role key must never be shared or committed |

@@ -63,7 +63,7 @@ No database connection, no admin sign-in, no AI agent, no WhatsApp Business API,
 
 Vercel step by step, including which environment variables to set and how to read a failed build: [`docs/DEPLOY_VERCEL.md`](docs/DEPLOY_VERCEL.md).
 
-0. On Vercel set the environment variables from `.env.example` for Production (at least `NEXT_PUBLIC_SITE_URL`, `BUSINESS_GSTIN`; later `DATABASE_URL`, `DIRECT_URL`, `SUPABASE_*`, `AUTH_SECRET`). Only `NEXT_PUBLIC_SITE_URL` is public; everything else stays server-side.
+0. On Vercel set the environment variables from `.env.example` for Production (at least `NEXT_PUBLIC_SITE_URL`; later `DATABASE_URL`, `DIRECT_URL`, `SUPABASE_*`, `AUTH_SECRET`). Only `NEXT_PUBLIC_SITE_URL` is public; everything else stays server-side.
 1. Set **`NEXT_PUBLIC_SITE_URL`** to your real domain **at build time** (e.g. `https://www.yourdomain.in`). It feeds canonical URLs, the sitemap and social tags; `npm run build` warns if it is missing.
 2. `npm run build && npm start` on a Node.js 22.12+ host with a persistent disk (or after connecting a database).
 3. Run `npm run smoke -- https://your-domain` against the live site.
@@ -90,7 +90,7 @@ Security headers (HSTS in production, `nosniff`, frame denial, referrer and perm
 
 **About the product list:** `data/products.ts` holds only the **five products the owner identified**; `data/categories.ts` the 23 categories and `data/brands.ts` the 20 brands (a separate list — brands are not products, nothing is attached to them). There are **no SKUs, prices, GST rates, HSN codes, stock or pack sizes** anywhere in the repo. The database schema has a place for all of them (`Product`: SKU, brand, category, unit, pack size, purchase / wholesale / retail price, GST rate, HSN, stock, minimum order quantity, image, active status) so the owner can add real products later from the admin. “Cello Tape” and “Adhesive Tape” are product types (categories), not brands.
 
-**GSTIN:** it is deliberately *not* in the code. Set the server-only `BUSINESS_GSTIN` environment variable (Vercel → Project → Settings → Environment Variables); the footer and About page show it when set.
+**GSTIN:** the website only says “GST Registered” — it never prints the number. The number itself is deliberately *not* in the code; it will live in the server-only `BUSINESS_GSTIN` environment variable and is used for invoices later (it can be left unset for now).
 
 **Logo:** a fountain-pen nib resting on an ink line, on an indigo tile. Outlined SVG lockups (no font dependency, safe for print) are in `public/brand/` (`logo.svg`, `logo-on-dark.svg`, `logo-mark.svg`).
 

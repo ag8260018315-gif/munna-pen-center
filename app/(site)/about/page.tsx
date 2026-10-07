@@ -3,7 +3,6 @@ import { CtaBand } from "@/components/home/cta-band";
 import { Container, PageHeader } from "@/components/ui/section";
 import { about } from "@/content/about";
 import { pageSeo } from "@/content/seo";
-import { getBusinessGstin } from "@/lib/business";
 import { siteConfig } from "@/lib/config/site";
 import { pageMetadata } from "@/lib/seo";
 
@@ -11,12 +10,11 @@ export const metadata = pageMetadata({ ...pageSeo.about, path: "/about" });
 
 export default function AboutPage() {
   const { location, gst } = siteConfig;
-  const gstin = getBusinessGstin();
   const facts = [
     { icon: Building2, label: "Business", value: "Wholesale stationery & office supplies" },
     { icon: MapPin, label: "Location", value: `${location.locality}, ${location.region}, ${location.country}` },
     { icon: Truck, label: "Supply area", value: "All India" },
-    ...(gst.registered ? [{ icon: Receipt, label: "GST", value: gstin ? `Registered · GSTIN ${gstin}` : "GST registered" }] : []),
+    ...(gst.registered ? [{ icon: Receipt, label: "GST", value: "GST registered" }] : []),
     ...(about.established ? [{ icon: PackageCheck, label: "Established", value: about.established }] : []),
   ];
 

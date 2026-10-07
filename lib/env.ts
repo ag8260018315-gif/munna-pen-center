@@ -36,7 +36,7 @@ const optionalChoice = <T extends [string, ...string[]]>(values: T) =>
 
 export const serverEnvSchema = z.object({
   /**
-   * The business GSTIN (shown in the footer / About page when set; used on invoices in Phase 4). Never put it in source.
+   * The business GSTIN, for invoices and the admin (Phase 4). NOT shown on the public website. Never put it in source.
    * Deliberately NOT validated here: a mistyped value must not stop the build. lib/gstin.ts checks the shape where it is used.
    */
   BUSINESS_GSTIN: optionalString,

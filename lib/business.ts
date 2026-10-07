@@ -5,9 +5,11 @@ import { normaliseGstin } from "@/lib/gstin";
 /**
  * The business's GSTIN, from the server-only BUSINESS_GSTIN environment variable — never from source code.
  *
- * Returns null when it is not set or not a valid GSTIN, and the page then simply leaves it out. A mistyped value must
- * NEVER break a build or a page — it only controls whether a line of text is shown — so a problem is logged once,
- * without the value, and treated as "not set". (Invoices, later, will insist on a valid one.)
+ * NOT used by any public page: the website says only "GST Registered" and never prints the number (a test enforces
+ * this). It exists for invoices and the admin (Phase 4).
+ *
+ * Returns null when it is not set or not a valid GSTIN. A mistyped value must NEVER break a build or a page, so a
+ * problem is logged once, without the value, and treated as "not set". (Invoices, later, will insist on a valid one.)
  */
 let warned = false;
 
