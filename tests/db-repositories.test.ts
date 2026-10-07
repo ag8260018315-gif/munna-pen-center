@@ -38,7 +38,7 @@ describe.skipIf(!url)("database repositories", () => {
       data: [
         {
           id: "itest-p1", slug: "itest-glue-gun", name: "ITest Glue Gun", shortDescription: "A glue gun", categoryId: "itest-cat", brandId: "itest-brand",
-          status: "ACTIVE", sku: SKU, purchasePrice: PRICE, wholesalePrice: PRICE, retailPrice: PRICE, stockQuantity: 777, hsnCode: "9999", gstRatePercent: "18", tags: ["itest"],
+          status: "ACTIVE", sku: SKU, purchasePrice: PRICE, wholesalePrice: PRICE, retailPrice: PRICE, stockQuantity: 1357911, hsnCode: "HSN-ZZ-4711", gstRatePercent: "18", tags: ["itest"],
         },
         { id: "itest-p2", slug: "itest-draft", name: "ITest Draft", categoryId: "itest-cat", status: "DRAFT" },
         { id: "itest-p3", slug: "itest-inactive", name: "ITest Inactive", categoryId: "itest-cat", status: "INACTIVE" },
@@ -82,7 +82,7 @@ describe.skipIf(!url)("database repositories", () => {
         await catalogue.listFeaturedProducts(),
       ]);
       expect(everything).toContain("itest-glue-gun"); // the product really was returned
-      for (const secret of [PRICE, SKU, "777", "9999", "purchasePrice", "wholesalePrice", "retailPrice", "stockQuantity", "hsnCode", "gstRatePercent", "sku"]) {
+      for (const secret of [PRICE, SKU, "1357911", "HSN-ZZ-4711", "purchasePrice", "wholesalePrice", "retailPrice", "stockQuantity", "hsnCode", "gstRatePercent", "sku"]) {
         expect(everything, secret).not.toContain(secret);
       }
     });

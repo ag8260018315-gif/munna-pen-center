@@ -31,4 +31,10 @@ describe("prisma/seed/catalogue.sql (pasted into the Supabase SQL Editor)", () =
     expect(q(`'; DROP TABLE "Product"; --`)).toBe(`'''; DROP TABLE "Product"; --'`);
     expect(q("")).toBe("''");
   });
+
+  it("writes anything that is not plain ASCII as chr(...), so the file survives copy and paste byte for byte", () => {
+    expect(q("a \u2014 b")).toBe("'a ' || chr(8212) || ' b'");
+    expect(q("line1\nline2")).toBe("'line1' || chr(10) || 'line2'");
+    expect(q("\u00e9")).toBe("chr(233)");
+  });
 });

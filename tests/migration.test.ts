@@ -84,3 +84,21 @@ describe("the Supabase setup guide", () => {
     expect(guide).not.toMatch(/postgres(ql)?:\/\/[^\s`]*:[^\s`\[]+@/); // no filled-in connection string
   });
 });
+
+describe("the files pasted into the Supabase SQL Editor", () => {
+  const files = ["prisma/migrations/0001_init/migration.sql", "prisma/tests/migration-checks.sql", "prisma/seed/catalogue.sql"];
+
+  it("are pure ASCII — an em dash or other symbol can be mangled by a browser editor's own script rewriting", async () => {
+    for (const file of files) {
+      const text = await readFile(file, "utf8");
+      const bad = [...text].filter((character) => (character.codePointAt(0) ?? 0) > 126).slice(0, 5);
+      expect(bad, file).toEqual([]);
+    }
+  });
+
+  it("switch row level security on for every table with a plain, visible statement (so the editor adds nothing of its own)", () => {
+    const tables = [...sql.matchAll(/^CREATE TABLE "(\w+)"/gm)].map((m) => m[1]);
+    expect(tables.length).toBe(19);
+    for (const table of tables) expect(sql, table).toContain(`ALTER TABLE "${table}" ENABLE ROW LEVEL SECURITY;`);
+  });
+});

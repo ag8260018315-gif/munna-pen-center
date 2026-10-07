@@ -25,14 +25,17 @@ To copy a file from GitHub: open it on github.com, click the **Raw** button, pre
 
 Open **SQL Editor** (left menu) → **New query**. For each paste below: paste, click **Run**, read the result.
 
-1. **`migration.sql`** → run it **once** (a second run fails with "already exists"). Supabase will show *"Potential issue detected: this query creates tables without enabling Row Level Security"*: click the green **Run and enable RLS**. (The migration switches RLS on for every table itself, at its end; the editor just cannot see that inside the script, and enabling it twice is harmless.) Expect *"Success. No rows returned"*.
-   Optional check — both numbers must be 19:
+1. **`migration.sql`** -> run it **once** (a second run fails with "already exists").
+   - The newest file switches Row Level Security on for each table in plain sight, so Supabase should simply run it.
+   - If Supabase still shows *"Potential issue detected: this query creates tables without enabling Row Level Security"*, click the **orange "Run without RLS"** button. Do **not** click the green "Run and enable RLS": that option rewrites the script before running it, and on this script it inserts a stray `;` and fails with *syntax error at or near ";"*. (Nothing is lost by choosing orange: the script turns RLS on for every table itself, and the check below proves it.)
+   - Expect *"Success. No rows returned"*.
+   Check - both numbers must be 19:
    ```sql
    select count(*) filter (where relrowsecurity) as with_security, count(*) as total_tables
    from pg_class c join pg_namespace n on n.oid = c.relnamespace
    where n.nspname = 'public' and c.relkind = 'r';
    ```
-   If a red error appears, send me its text before running anything again.
+   If a red error appears, send me its text before running anything again. A syntax error means nothing was built, so it is safe to try again.
 2. **`migration-checks.sql`** → expect one result row: **ALL MIGRATION CHECKS PASSED**.
    Then run this to confirm nothing was left behind (all three numbers must be 0):
    ```sql

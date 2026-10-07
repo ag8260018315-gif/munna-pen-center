@@ -78,7 +78,7 @@ All foreign keys use `ON UPDATE CASCADE`. Ids are text (`cuid`), so there are no
 
 For **every** table in `public` (done by a loop, so `_prisma_migrations` is covered too):
 
-1. `ALTER TABLE … ENABLE ROW LEVEL SECURITY`
+1. `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` - written out once per table (so it is visible, and the Supabase SQL Editor adds nothing of its own) and then again by the loop
 2. `REVOKE ALL … FROM anon, authenticated` (Supabase's browser-facing roles)
 3. `CREATE POLICY "deny_api_access" … AS RESTRICTIVE FOR ALL TO anon, authenticated USING (false) WITH CHECK (false)` — a restrictive policy, so even a permissive policy added later by mistake cannot open a table
 4. `ALTER DEFAULT PRIVILEGES … REVOKE ALL … FROM anon, authenticated` so tables created later are not handed out either
