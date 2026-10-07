@@ -1,5 +1,6 @@
 import { DESCRIPTION_MAX } from "@/content/seo";
 import type { ProductWithCategory } from "@/lib/domain/types";
+import { truncate } from "@/lib/text";
 
 /** <title> for a product page (the layout appends " | Munna Pen Center"). */
 export function productSeoTitle(product: Pick<ProductWithCategory, "name">): string {
@@ -18,5 +19,6 @@ export function productSeoDescription(product: Pick<ProductWithCategory, "shortD
     `${base} Request a wholesale quote.`,
     base,
   ];
-  return candidates.find((text) => text.length <= DESCRIPTION_MAX) ?? base;
+  // If even the bare sentence is too long, cut it (on a code-point boundary) rather than exceed the limit.
+  return candidates.find((text) => text.length <= DESCRIPTION_MAX) ?? truncate(base, DESCRIPTION_MAX);
 }

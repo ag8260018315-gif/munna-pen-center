@@ -1,4 +1,5 @@
 import { formatIndianPhone, normaliseIndianMobile } from "@/lib/phone";
+import { normaliseSiteUrl } from "@/lib/site-url-check";
 
 /**
  * Single source of truth for business details.
@@ -21,7 +22,8 @@ export const siteConfig = {
    * Canonical origin, used for sitemap, canonical URLs and Open Graph.
    * Set NEXT_PUBLIC_SITE_URL in production (e.g. https://www.yourdomain.in).
    */
-  url: (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, ""),
+  // normaliseSiteUrl: a blank or malformed value (e.g. "yourdomain.in") must not reach `new URL()` in the layout.
+  url: normaliseSiteUrl(process.env.NEXT_PUBLIC_SITE_URL) ?? "http://localhost:3000",
   locale: "en_IN",
 
   location: {

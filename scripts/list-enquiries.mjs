@@ -34,12 +34,14 @@ if (typeof process.loadEnvFile === "function") {
 /**
  * Visitors control every field, so print them as inert single-line text: line breaks become " | " (a
  * visitor can't fake a second enquiry row) and every control character is dropped (a visitor can't send
- * terminal escape sequences to the owner's screen).
+ * terminal escape sequences to the owner's screen) and every bidirectional override is dropped (a visitor can't
+ * make the owner read the phone number next to their name backwards).
  */
 const text = (value) =>
   String(value ?? "")
     .replace(/\r\n|\r|\n|[\p{Zl}\p{Zp}]/gu, " | ")
-    .replace(/\p{Cc}/gu, " ");
+    .replace(/\p{Cc}/gu, " ")
+    .replace(/\p{Bidi_Control}/gu, "");
 
 const args = process.argv.slice(2);
 const asJson = args.includes("--json");

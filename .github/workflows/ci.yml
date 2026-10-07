@@ -47,8 +47,18 @@ jobs:
 
       - name: No server-only secrets in the browser bundle
         run: |
-          if grep -rE "AI_API_KEY|DATABASE_URL|WHATSAPP_API_TOKEN|WHATSAPP_WEBHOOK_VERIFY_TOKEN|AUTH_SECRET|GST_API_(KEY|SECRET)|ENQUIRY_DATA_DIR" .next/static; then
-            echo "A server-only variable name reached the client bundle" >&2; exit 1
+          # The names come from lib/env.ts, so a variable added later is covered automatically.
+          test -d .next/static || { echo ".next/static is missing - nothing to check, so failing" >&2; exit 1; }
+          names=$(grep -oE '^  [A-Z][A-Z0-9_]+:' lib/env.ts | tr -d ' :' | paste -sd'|' -)
+          count=$(printf '%s' "$names" | tr '|' '\n' | wc -l)
+          test "$count" -ge 5 || { echo "could not read the variable names from lib/env.ts" >&2; exit 1; }
+          echo "Looking for: $names"
+          # Client JavaScript, plus the prerendered pages (HTML / RSC payloads) that are sent to every visitor.
+          # -l lists file names only (minified chunks are huge single lines).
+          leaks=$( { grep -rlE "$names" .next/static; grep -rlE --include='*.html' --include='*.rsc' "$names" .next/server/app; } 2>/dev/null || true )
+          if [ -n "$leaks" ]; then
+            echo "$leaks"
+            echo "A server-only variable name reached what visitors download (files listed above)" >&2; exit 1
           fi
 
       - name: Smoke test the production server

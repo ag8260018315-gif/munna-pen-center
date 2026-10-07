@@ -3,8 +3,9 @@ import { DESCRIPTION_MAX, TITLE_BASE_MAX, TITLE_MAX, pageSeo } from "@/content/s
 import { categories } from "@/data/categories";
 import { products } from "@/data/products";
 import { productSeoDescription, productSeoTitle } from "@/lib/catalogue-seo";
+import { siteConfig } from "@/lib/config/site";
 
-const SUFFIX = " | Munna Pen Center"; // appended by the layout's title template
+const SUFFIX = ` | ${siteConfig.name}`; // appended by the layout's title template
 const BRAND = /munna pen center/i;
 
 describe("search-result copy stays within what search engines show", () => {
@@ -14,7 +15,6 @@ describe("search-result copy stays within what search engines show", () => {
 
   it.each(Object.entries(pageSeo).filter(([key]) => key !== "home"))("%s: title + site suffix fits, brand not repeated", (_key, seo) => {
     expect(seo.title.length).toBeLessThanOrEqual(TITLE_BASE_MAX);
-    expect(seo.title + SUFFIX).toHaveLength(seo.title.length + SUFFIX.length);
     expect(seo.title + SUFFIX).not.toMatch(new RegExp(`${BRAND.source}[\\s\\S]*${BRAND.source}`, "i"));
     expect((seo.title + SUFFIX).length).toBeLessThanOrEqual(TITLE_MAX);
   });
@@ -48,5 +48,31 @@ describe("search-result copy stays within what search engines show", () => {
     const descriptions = [...categories.map((c) => c.seoDescription), ...products.map((p) => productSeoDescription(p)), ...Object.values(pageSeo).map((s) => s.description)];
     expect(new Set(titles).size).toBe(titles.length);
     expect(new Set(descriptions).size).toBe(descriptions.length);
+  });
+});
+
+describe("product description shortening", () => {
+  const withBase = (length: number) => ({ shortDescription: "x".repeat(length) });
+  const WITH_BRAND = " Wholesale supply from Munna Pen Center, Dhanbad, across India. Request a quote.";
+  const SHORT_CTA = " Request a wholesale quote.";
+
+  it("uses the fullest wording that fits", () => {
+    const base = "x".repeat(40);
+    expect(productSeoDescription({ shortDescription: base })).toBe(`${base}${WITH_BRAND}`);
+  });
+
+  it("falls back to shorter wording as the product's own sentence grows", () => {
+    const medium = productSeoDescription(withBase(120));
+    expect(medium.endsWith(SHORT_CTA.trim())).toBe(true);
+    expect(medium.length).toBeLessThanOrEqual(DESCRIPTION_MAX);
+
+    const long = productSeoDescription(withBase(150));
+    expect(long).toBe("x".repeat(150));
+  });
+
+  it("never exceeds the limit, even when the product's own sentence is too long", () => {
+    const out = productSeoDescription(withBase(400));
+    expect(out.length).toBeLessThanOrEqual(DESCRIPTION_MAX);
+    expect(out.endsWith("…")).toBe(true);
   });
 });

@@ -130,4 +130,4 @@ docs/                 Architecture, AI sales agent, launch checklist
 
 ## Verified before hand-off
 
-`npm run check` (typecheck, ESLint, 177 unit tests) · production build · `npm run smoke` (78 routes) · 33-step browser run through search, enquiry list, validation errors, submissions, persistence, honeypot and the mobile bar · axe-core WCAG 2.2 AA on 10 pages × 2 viewports.
+`npm run check` (typecheck, ESLint, 231 unit tests) · production build · `npm run smoke` (78 routes) · 33-step browser run through search, enquiry list, validation errors, submissions, persistence, honeypot and the mobile bar · axe-core WCAG 2.2 AA on 10 pages × 2 viewports.

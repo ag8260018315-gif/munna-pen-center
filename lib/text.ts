@@ -35,11 +35,15 @@ export function truncate(text: string, max: number, ellipsis = "…"): string {
  *  - browsers submit textarea line breaks as CRLF; store plain "\n" (and count them as one character),
  *  - drops control characters (NUL, ESC, BEL, backspace, DEL, C1…) that have no business in a name or a
  *    message and can corrupt terminals, logs and CSV exports, keeping only newline and tab,
- *  - turns Unicode line / paragraph separators into ordinary newlines.
+ *  - turns Unicode line / paragraph separators into ordinary newlines,
+ *  - drops bidirectional override/isolate characters (U+202A–202E, U+2066–2069, marks), which can make a name flip
+ *    the text beside it — e.g. an owner reading a phone number backwards. Zero-width joiners are KEPT: Hindi conjuncts
+ *    and emoji sequences need them.
  */
 export function sanitiseText(value: string): string {
   return wellFormed(value)
     .replace(/\r\n?/g, "\n")
     .replace(/[\p{Zl}\p{Zp}]/gu, "\n")
-    .replace(/[^\P{Cc}\n\t]/gu, "");
+    .replace(/[^\P{Cc}\n\t]/gu, "")
+    .replace(/\p{Bidi_Control}/gu, "");
 }

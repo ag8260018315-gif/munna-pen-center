@@ -2,6 +2,13 @@ import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import { getServerEnv, serverEnvSchema } from "@/lib/env";
 
+/**
+ * Only NEXT_PUBLIC_* and NODE_ENV may be read with dot access. Bracket access, destructuring and passing
+ * `process.env` around are all rejected, because they can reach secrets and slip past a simple pattern.
+ * One constant, used by the scan AND by the detector self-test, so the self-test cannot drift from the real check.
+ */
+const forbidden = /process\s*\.\s*env(?!\s*\.\s*(?:NEXT_PUBLIC_[A-Z0-9_]+|NODE_ENV)\b)/;
+
 describe("environment configuration", () => {
   it(".env.example documents exactly the variables the schema reads", async () => {
     const example = await readFile(".env.example", "utf8");
@@ -29,9 +36,6 @@ describe("environment configuration", () => {
   it("keeps secrets out of the client: no \"use client\" file under app/, components/ or lib/ reads a non-public variable (any syntax)", async () => {
     const { readdir, readFile: read } = await import("node:fs/promises");
     const offenders: string[] = [];
-    // Only NEXT_PUBLIC_* and NODE_ENV may be read with dot access. Bracket access, destructuring and passing
-    // `process.env` around are all rejected, because they can reach secrets and slip past a simple pattern.
-    const forbidden = /process\s*\.\s*env(?!\s*\.\s*(?:NEXT_PUBLIC_[A-Z0-9_]+|NODE_ENV)\b)/;
     async function walk(dir: string) {
       for (const entry of await readdir(dir, { withFileTypes: true })) {
         const full = `${dir}/${entry.name}`;
@@ -47,7 +51,6 @@ describe("environment configuration", () => {
   });
 
   it("the detector itself catches the sneaky forms", () => {
-    const forbidden = /process\s*\.\s*env(?!\s*\.\s*(?:NEXT_PUBLIC_[A-Z0-9_]+|NODE_ENV)\b)/;
     for (const sneaky of ["process.env.AUTH_SECRET", 'process.env["AI_API_KEY"]', "const { AUTH_SECRET } = process.env;", "send(process.env)", "process . env.DATABASE_URL"]) {
       expect(forbidden.test(sneaky), sneaky).toBe(true);
     }

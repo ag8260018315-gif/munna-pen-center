@@ -12,8 +12,11 @@ import type { NavItem } from "@/lib/config/navigation";
 
 export function MobileMenu({ items, whatsappUrl }: { items: NavItem[]; whatsappUrl: string }) {
   const pathname = usePathname();
-  // Remember the page the menu was opened on: navigating elsewhere closes it, no effect needed.
+  // Remember the page the menu was opened on. Navigating elsewhere must CLOSE it for good (not merely hide it:
+  // otherwise Back would find `openOn === pathname` again and pop it open), so state is reset during render —
+  // React's documented way to adjust state when a value (here the path) changes, no effect needed.
   const [openOn, setOpenOn] = useState<string | null>(null);
+  if (openOn !== null && openOn !== pathname) setOpenOn(null);
   const open = openOn === pathname;
   const containerRef = useRef<HTMLDivElement>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);
@@ -57,7 +60,15 @@ export function MobileMenu({ items, whatsappUrl }: { items: NavItem[]; whatsappU
         hidden={!open}
         className="absolute inset-x-0 top-full max-h-[calc(100dvh-4.5rem)] overflow-y-auto border-b border-line bg-white shadow-lift"
       >
-        <nav aria-label="Mobile" className="mx-auto max-w-7xl px-4 py-4 sm:px-6">
+        <nav
+          aria-label="Mobile"
+          className="mx-auto max-w-7xl px-4 py-4 sm:px-6"
+          // Any link in the menu (pages, Request Bulk Quote, WhatsApp) closes it — including when it points at the
+          // page we are already on, where the path does not change.
+          onClick={(event) => {
+            if ((event.target as HTMLElement).closest("a")) setOpenOn(null);
+          }}
+        >
           <ul className="grid gap-1">
             {items.map((item) => {
               const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
@@ -66,7 +77,6 @@ export function MobileMenu({ items, whatsappUrl }: { items: NavItem[]; whatsappU
                   <Link
                     href={item.href}
                     aria-current={active ? "page" : undefined}
-                    onClick={() => setOpenOn(null)}
                     className={cn(
                       "block rounded-lg px-3 py-3 text-base font-semibold",
                       active ? "bg-brand-50 text-brand-800" : "text-ink hover:bg-surface",

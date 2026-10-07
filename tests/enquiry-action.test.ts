@@ -38,6 +38,9 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  vi.useRealTimers();
+  vi.doUnmock("@/lib/whatsapp");
+  vi.doUnmock("@/lib/repositories");
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
   await rm(dir, { recursive: true, force: true });
@@ -110,6 +113,45 @@ describe("submitBulkEnquiryAction", () => {
     expect(state.whatsappUrl).toContain("wa.me/917979025166");
     expect(decodeURIComponent(state.whatsappUrl ?? "")).toContain("Sunrise Public School");
     expect(state.values?.name).toBe("Asha Kumari");
+  });
+});
+
+describe("things that go wrong around the save", () => {
+  it("still tells the visitor their enquiry was received when building the WhatsApp link fails AFTER it was saved", async () => {
+    vi.doMock("@/lib/whatsapp", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("@/lib/whatsapp")>();
+      return {
+        ...actual,
+        buildEnquiryWhatsAppMessage: () => {
+          throw new Error("could not build message");
+        },
+      };
+    });
+    const { submitBulkEnquiryAction } = await import("@/app/actions/enquiry");
+    const state = await submitBulkEnquiryAction(initialFormState, bulkForm());
+
+    expect(state.status).toBe("success");
+    if (state.status === "success") expect(state.whatsappUrl).toContain("https://wa.me/917979025166");
+    const lines = (await readFile(path.join(dir, "enquiries.jsonl"), "utf8")).trim().split("\n");
+    expect(lines).toHaveLength(1);
+  });
+
+  it("stops waiting for a store that never answers and offers the WhatsApp fallback instead of an endless spinner", async () => {
+    vi.useFakeTimers();
+    vi.doMock("@/lib/repositories", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("@/lib/repositories")>();
+      return { ...actual, getEnquiryRepository: () => ({ create: () => new Promise(() => {}) }) as unknown as ReturnType<typeof actual.getEnquiryRepository> };
+    });
+    const { submitBulkEnquiryAction } = await import("@/app/actions/enquiry");
+
+    const pending = submitBulkEnquiryAction(initialFormState, bulkForm());
+    await vi.advanceTimersByTimeAsync(8_500);
+    const state = await pending;
+
+    expect(state.status).toBe("error");
+    if (state.status !== "error") return;
+    expect(state.message).toMatch(/WhatsApp/);
+    expect(state.whatsappUrl).toContain("wa.me/917979025166");
   });
 });
 

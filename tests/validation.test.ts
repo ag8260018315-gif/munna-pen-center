@@ -80,3 +80,12 @@ describe("readItems", () => {
     ]);
   });
 });
+
+describe("readItems cleans what the browser sends", () => {
+  it("turns CRLF into one newline and drops control characters in slugs and quantities", () => {
+    const fd = new FormData();
+    fd.append("itemSlug", `ball-pens${String.fromCharCode(7)}`);
+    fd.append("itemQuantity", "10\r\nboxes\u001b[31m");
+    expect(readItems(fd)).toEqual([{ slug: "ball-pens", quantity: "10\nboxes[31m" }]);
+  });
+});

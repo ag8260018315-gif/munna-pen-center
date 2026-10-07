@@ -72,6 +72,20 @@ describe("sanitiseText", () => {
     expect(sanitiseText(`a${LINE_SEPARATOR}b${PARAGRAPH_SEPARATOR}c`)).toBe("a\nb\nc");
   });
 
+  it("removes bidirectional override characters, which can make the owner read a phone number backwards", () => {
+    const rlo = String.fromCharCode(0x202e);
+    const isolate = String.fromCharCode(0x2066);
+    const mark = String.fromCharCode(0x200f);
+    expect(sanitiseText(`Ravi ${rlo}${isolate}${mark}`)).toBe("Ravi ");
+  });
+
+  it("keeps the joiners that Hindi and emoji sequences need", () => {
+    const zwj = String.fromCharCode(0x200d);
+    const zwnj = String.fromCharCode(0x200c);
+    const family = `👨${zwj}👩${zwj}👧`;
+    expect(sanitiseText(`${family} क${zwnj}ष`)).toBe(`${family} क${zwnj}ष`);
+  });
+
   it("preserves ordinary Unicode text", () => {
     expect(sanitiseText("मुन्ना पेन सेंटर – ₹ 🙏")).toBe("मुन्ना पेन सेंटर – ₹ 🙏");
   });

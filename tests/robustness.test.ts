@@ -161,6 +161,17 @@ describe("npm run enquiries (owner's viewer)", () => {
     // The planted "second enquiry" must not appear on a line of its own.
     expect(out.split("\n").filter((line) => line.startsWith("ENQ-"))).toEqual([expect.stringContaining("ENQ-20261006-REAL")]);
   });
+
+  it("drops bidirectional override characters so a name cannot reverse the phone number next to it", async () => {
+    const rlo = String.fromCharCode(0x202e);
+    const isolate = String.fromCharCode(0x2067);
+    const record = { id: "1", reference: "ENQ-20261006-BIDI", source: "CONTACT_FORM", status: "NEW", name: `Ravi ${rlo}${isolate}`, phone: "+919876543210", items: [], createdAt: "2026-10-06T10:00:00.000Z" };
+    await writeFile(path.join(dir, "enquiries.jsonl"), `${JSON.stringify(record)}\n`);
+    const out = execFileSync(process.execPath, ["scripts/list-enquiries.mjs"], { env: { ...process.env, ENQUIRY_DATA_DIR: dir }, encoding: "utf8" });
+    expect(out).toContain("Ravi");
+    expect(out).not.toContain(rlo);
+    expect(out).not.toContain(isolate);
+  });
 });
 
 describe("npm run enquiries finds the store the way the server does", () => {
