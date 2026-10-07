@@ -2,6 +2,7 @@ import "server-only";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/guard";
 import { getDb } from "@/lib/db/client";
+import { invalidateCatalogueSnapshot } from "@/lib/repositories/prisma-catalogue";
 import {
   brandSchema,
   categorySchema,
@@ -35,11 +36,17 @@ function uniqueTarget(error: unknown): string | null {
   return e?.code === "P2002" ? JSON.stringify(e.meta ?? "").toLowerCase() : null;
 }
 
-function conflictResult(error: unknown, labels: Record<string, [field: string, message: string]>): Result | null {
+/** `autoSlug`: the slug was made from the name, so a clash on it is really a clash on the name. */
+function conflictResult(error: unknown, labels: Record<string, [field: string, message: string]>, autoSlug = false): Result | null {
   const target = uniqueTarget(error);
   if (target === null) return null;
   for (const [needle, [field, message]] of Object.entries(labels)) {
-    if (target.includes(needle)) return { ok: false, message, fieldErrors: { [field]: message } };
+    if (!target.includes(needle)) continue;
+    if (autoSlug && field === "slug") {
+      const text = "Another one with this name (or a very similar one) already exists";
+      return { ok: false, message: text, fieldErrors: { name: text } };
+    }
+    return { ok: false, message, fieldErrors: { [field]: message } };
   }
   return { ok: false, message: "That value is already used." };
 }
@@ -50,7 +57,10 @@ const failed = (error: unknown, what: string): Result => {
 };
 
 /** The public website must pick up changes at once. */
-const refreshSite = () => revalidatePath("/", "layout");
+const refreshSite = () => {
+  invalidateCatalogueSnapshot();
+  revalidatePath("/", "layout");
+};
 
 const PRICE_FIELDS = ["purchasePrice", "wholesalePrice", "retailPrice", "gstRatePercent", "hsnCode"] as const;
 
@@ -144,7 +154,7 @@ export async function createProduct(raw: Record<string, string>): Promise<Result
     refreshSite();
     return { ok: true, id: product.id };
   } catch (error) {
-    return conflictResult(error, PRODUCT_CONFLICTS) ?? failed(error, "createProduct");
+    return conflictResult(error, PRODUCT_CONFLICTS, !input.slug) ?? failed(error, "createProduct");
   }
 }
 
@@ -244,7 +254,7 @@ export async function saveBrand(id: string | null, raw: Record<string, string>):
     return { ok: true, id: brand.id };
   } catch (error) {
     if ((error as { code?: string } | null)?.code === "P2025") return { ok: false, message: "That brand no longer exists." };
-    return conflictResult(error, BRAND_CONFLICTS) ?? failed(error, "saveBrand");
+    return conflictResult(error, BRAND_CONFLICTS, !data.slug) ?? failed(error, "saveBrand");
   }
 }
 
@@ -275,7 +285,7 @@ export async function saveCategory(id: string | null, raw: Record<string, string
     return { ok: true, id: category.id };
   } catch (error) {
     if ((error as { code?: string } | null)?.code === "P2025") return { ok: false, message: "That category no longer exists." };
-    return conflictResult(error, CATEGORY_CONFLICTS) ?? failed(error, "saveCategory");
+    return conflictResult(error, CATEGORY_CONFLICTS, !data.slug) ?? failed(error, "saveCategory");
   }
 }
 

@@ -201,6 +201,8 @@ describe.skipIf(!url)("admin catalogue on a real database", () => {
     expect(await admin.saveBrand(null, { name: "itest a brand two", slug: "itest-a-brand-3" })).toMatchObject({ ok: false, fieldErrors: { name: expect.any(String) } });
     expect(await admin.saveBrand(b.id, { name: "ITest A Brand Two", slug: "itest-a-brand-two" })).toMatchObject({ ok: true });
     expect((await db.brand.findUniqueOrThrow({ where: { id: b.id } })).isActive).toBe(false); // unticked = deactivated
+    // slug left blank: the clash is reported on the NAME box the person actually typed in
+    expect(await admin.saveBrand(null, { name: "ITEST A BRAND TWO" })).toMatchObject({ ok: false, fieldErrors: { name: expect.any(String) } });
     expect(await admin.saveBrand("missing", { name: "Whatever" })).toMatchObject({ ok: false });
 
     const c = await admin.saveCategory(null, { name: "ITest A Cat Two", summary: "", isActive: "on" });

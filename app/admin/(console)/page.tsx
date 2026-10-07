@@ -79,7 +79,7 @@ export default async function AdminDashboardPage() {
                     {stage.implemented ? "Live" : "Planned"}
                   </span>
                   {stage.requiresOwnerApproval && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-accent-100 px-2 py-0.5 text-[0.7rem] font-bold text-accent-700">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-accent-100 px-2 py-0.5 text-[0.7rem] font-bold text-amber-900">
                       <ShieldCheck className="size-3" aria-hidden="true" /> Owner approval
                     </span>
                   )}

@@ -30,7 +30,11 @@ function FormShell({ action, children, submitLabel }: { action: Action; children
   return (
     <form action={formAction} aria-busy={pending} className="grid gap-5">
       {state.message && !state.ok && <Notice kind="error">{state.message}</Notice>}
-      {children(state)}
+      {/* React resets uncontrolled fields after a submit (and keeps a changed <select> default out of the DOM), so the
+          fields are remounted with the values the server sent back: nothing the person typed is lost on an error. */}
+      <div key={state.values ? JSON.stringify(state.values) : "fresh"} className="grid gap-5">
+        {children(state)}
+      </div>
       <div>
         <Button type="submit" size="lg" disabled={pending}>
           {pending ? "Saving…" : submitLabel}
