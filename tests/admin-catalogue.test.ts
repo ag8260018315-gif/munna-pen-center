@@ -42,7 +42,8 @@ describe("product validation", () => {
 
   it("accepts good values and rejects bad ones", () => {
     expect(parse({ wholesalePrice: "₹1,250.50", stockQuantity: "0", gstRatePercent: "18", hsnCode: "9608", minOrderQuantity: "12" })).toMatchObject({ success: true, data: { wholesalePrice: "1250.50", stockQuantity: 0, minOrderQuantity: 12 } });
-    for (const bad of [{ wholesalePrice: "-5" }, { wholesalePrice: "12.345" }, { wholesalePrice: "abc" }, { stockQuantity: "-1" }, { stockQuantity: "1.5" }, { stockQuantity: "99999999999" }, { gstRatePercent: "101" }, { gstRatePercent: "x" }, { hsnCode: "12" }, { minOrderQuantity: "0" }, { slug: "Bad Slug" }, { slug: "-a" }, { status: "DELETED" }, { name: "x" }]) {
+    const badInputs: Record<string, string>[] = [{ wholesalePrice: "-5" }, { wholesalePrice: "12.345" }, { wholesalePrice: "abc" }, { stockQuantity: "-1" }, { stockQuantity: "1.5" }, { stockQuantity: "99999999999" }, { gstRatePercent: "101" }, { gstRatePercent: "x" }, { hsnCode: "12" }, { minOrderQuantity: "0" }, { slug: "Bad Slug" }, { slug: "-a" }, { status: "DELETED" }, { name: "x" }];
+    for (const bad of badInputs) {
       expect(parse(bad).success, JSON.stringify(bad)).toBe(false);
     }
   });
