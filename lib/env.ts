@@ -13,25 +13,33 @@ import { z } from "zod";
  *  • Keep this schema and `.env.example` in sync (tests/env.test.ts checks it).
  */
 
-/** 15 characters: 2-digit state code, 10-character PAN, entity number, "Z", check character. Checks the SHAPE only. */
-const GSTIN_PATTERN = /^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+/**
+ * Tidies a value typed into a hosting dashboard: surrounding spaces / newlines and one pair of matching quote marks
+ * (a very common paste slip — Vercel keeps them, so `"postgresql://…"` would otherwise fail) are removed, and an empty
+ * result counts as "not set". Anything else is left exactly as typed.
+ */
+function clean(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  let text = value.trim();
+  const quote = text[0];
+  if (text.length >= 2 && (quote === '"' || quote === "'" || quote === "`") && text.endsWith(quote)) text = text.slice(1, -1).trim();
+  return text === "" ? undefined : text;
+}
 
 /** Treat `KEY=` (empty) the same as unset. */
-const optionalString = z.preprocess((value) => (value === "" ? undefined : value), z.string().min(1).optional());
-const optionalUrl = z.preprocess((value) => (value === "" ? undefined : value), z.url().optional());
-
-const optionalGstin = z.preprocess(
-  (value) => (typeof value === "string" ? value.trim().toUpperCase() || undefined : value),
-  z.string().regex(GSTIN_PATTERN, "not a valid GSTIN").optional(),
-);
+const optionalString = z.preprocess(clean, z.string().min(1).optional());
+const optionalUrl = z.preprocess(clean, z.url().optional());
 
 /** `KEY=` (empty) = unset; otherwise one of the listed values. */
 const optionalChoice = <T extends [string, ...string[]]>(values: T) =>
-  z.preprocess((value) => (value === "" ? undefined : value), z.enum(values).optional());
+  z.preprocess(clean, z.enum(values).optional());
 
 export const serverEnvSchema = z.object({
-  /** The business GSTIN (shown in the footer / About page when set; used on invoices in Phase 4). Never put it in source. */
-  BUSINESS_GSTIN: optionalGstin,
+  /**
+   * The business GSTIN (shown in the footer / About page when set; used on invoices in Phase 4). Never put it in source.
+   * Deliberately NOT validated here: a mistyped value must not stop the build. lib/gstin.ts checks the shape where it is used.
+   */
+  BUSINESS_GSTIN: optionalString,
 
   /** Where V1 stores enquiries (JSONL). Needs a persistent disk. */
   ENQUIRY_DATA_DIR: optionalString,

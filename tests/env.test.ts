@@ -59,15 +59,25 @@ describe("environment configuration", () => {
     }
   });
 
-  it("BUSINESS_GSTIN: accepts a correctly shaped GSTIN (any case), treats empty as unset, rejects anything else without echoing it", () => {
-    const sample = "29ABCDE1234F1Z5"; // the standard dummy shape, not a real registration
-    expect(getServerEnv({ BUSINESS_GSTIN: sample }).BUSINESS_GSTIN).toBe(sample);
-    expect(getServerEnv({ BUSINESS_GSTIN: ` ${sample.toLowerCase()} ` }).BUSINESS_GSTIN).toBe(sample);
-    expect(getServerEnv({ BUSINESS_GSTIN: "" }).BUSINESS_GSTIN).toBeUndefined();
-    expect(getServerEnv({}).BUSINESS_GSTIN).toBeUndefined();
-    for (const bad of ["123", "29ABCDE1234F1Z", "29ABCDE1234F1X5", "not-a-gstin-xx"]) {
-      expect(() => getServerEnv({ BUSINESS_GSTIN: bad }), bad).toThrow(/BUSINESS_GSTIN/);
+  it("tolerates the paste slips people make in a hosting dashboard — quotes, spaces, newlines — instead of failing the build", () => {
+    const url = "postgresql://user:pass@db.example.test:5432/postgres";
+    for (const typed of [`"${url}"`, `'${url}'`, ` ${url}\n`, `"  ${url} "`]) {
+      expect(getServerEnv({ DATABASE_URL: typed }).DATABASE_URL, typed).toBe(url);
     }
+    expect(getServerEnv({ AUTH_SECRET: ' "abc123" ' }).AUTH_SECRET).toBe("abc123");
+    expect(getServerEnv({ DATABASE_URL: '""' }).DATABASE_URL).toBeUndefined();
+    expect(getServerEnv({ CATALOGUE_SOURCE: ' "database" ' }).CATALOGUE_SOURCE).toBe("database");
+    // A genuinely wrong value still fails loudly, naming the variable but not echoing it.
+    expect(() => getServerEnv({ DATABASE_URL: "not a url" })).toThrow(/DATABASE_URL/);
+    expect(() => getServerEnv({ CATALOGUE_SOURCE: "sometimes" })).toThrow(/CATALOGUE_SOURCE/);
+  });
+
+  it("BUSINESS_GSTIN: whatever is typed, reading the environment never throws (a bad GSTIN must not break a build)", () => {
+    for (const value of ["XXXXXXXXXXXXXXX", "123", `"29ABCDE1234F1Z5"`, " ", "", "GSTIN: 29ABCDE1234F1Z5", "not-a-gstin"]) {
+      expect(() => getServerEnv({ BUSINESS_GSTIN: value }), value).not.toThrow();
+    }
+    expect(getServerEnv({}).BUSINESS_GSTIN).toBeUndefined();
+    expect(getServerEnv({ BUSINESS_GSTIN: "" }).BUSINESS_GSTIN).toBeUndefined();
   });
 
   it("no GSTIN is written into source, docs or config — it lives only in the BUSINESS_GSTIN environment variable", async () => {
