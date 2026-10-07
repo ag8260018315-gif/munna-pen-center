@@ -2,16 +2,13 @@ import { ContactForm } from "@/components/forms/contact-form";
 import { WhatsAppIcon } from "@/components/icons/whatsapp";
 import { ButtonLink, ExternalButtonLink } from "@/components/ui/button";
 import { Container, PageHeader } from "@/components/ui/section";
+import { pageSeo } from "@/content/seo";
 import { siteConfig } from "@/lib/config/site";
 import { pageMetadata } from "@/lib/seo";
 import { buildWhatsAppUrl, whatsAppMessages } from "@/lib/whatsapp";
 import { Clock, Mail, MapPin, Phone } from "lucide-react";
 
-export const metadata = pageMetadata({
-  title: "Contact Munna Pen Center – Wholesale Stationery, Dhanbad",
-  description: `Contact Munna Pen Center in Dhanbad, Jharkhand for wholesale stationery requirements and bulk orders. Call or WhatsApp ${siteConfig.contact.phoneDisplay}, or send us a message.`,
-  path: "/contact",
-});
+export const metadata = pageMetadata({ ...pageSeo.contact, path: "/contact" });
 
 export default function ContactPage() {
   const { contact, location } = siteConfig;

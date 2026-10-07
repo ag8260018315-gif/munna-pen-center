@@ -7,6 +7,7 @@ import { ButtonLink, ExternalButtonLink } from "@/components/ui/button";
 import { Container, PageHeader } from "@/components/ui/section";
 import { EmptyState } from "@/components/ui/state-panels";
 import { CtaBand } from "@/components/home/cta-band";
+import { pageSeo } from "@/content/seo";
 import { getCatalogue } from "@/lib/repositories";
 import { pageMetadata } from "@/lib/seo";
 import { truncate } from "@/lib/text";
@@ -28,12 +29,7 @@ async function readParams(searchParams: SearchParams) {
 
 export async function generateMetadata({ searchParams }: { searchParams: SearchParams }): Promise<Metadata> {
   const { query, category, page } = await readParams(searchParams);
-  const base = pageMetadata({
-    title: "Wholesale Stationery & Office Supplies Catalogue",
-    description:
-      "Browse wholesale stationery and office supplies from Munna Pen Center, Dhanbad — pens, pencils, school and office supplies, engineering supplies, calculators, files and paper. Request a bulk quote.",
-    path: "/products",
-  });
+  const base = pageMetadata({ ...pageSeo.products, path: "/products" });
   // Search results and filtered views are for people, not search engines: keep them out of the index.
   if (query || page > 1) return { ...base, robots: { index: false, follow: true } };
   if (category) return { ...base, alternates: { canonical: `/categories/${category.slug}` }, robots: { index: false, follow: true } };

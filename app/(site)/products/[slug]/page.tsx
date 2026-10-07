@@ -9,6 +9,7 @@ import { ProductImage } from "@/components/products/product-image";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { ButtonLink, ExternalButtonLink } from "@/components/ui/button";
 import { Container } from "@/components/ui/section";
+import { productSeoDescription, productSeoTitle } from "@/lib/catalogue-seo";
 import { getCatalogue } from "@/lib/repositories";
 import { pageMetadata } from "@/lib/seo";
 import { buildWhatsAppUrl, whatsAppMessages } from "@/lib/whatsapp";
@@ -24,8 +25,8 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const product = await getCatalogue().getProductBySlug((await params).slug);
   if (!product) return {};
   return pageMetadata({
-    title: `${product.name} – Wholesale Supply`,
-    description: `${product.shortDescription} Wholesale ${product.name.toLowerCase()} from Munna Pen Center, Dhanbad, Jharkhand — supplied across India. Request a wholesale quote.`,
+    title: productSeoTitle(product),
+    description: productSeoDescription(product),
     path: `/products/${product.slug}`,
   });
 }

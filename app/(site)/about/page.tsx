@@ -2,15 +2,11 @@ import { Building2, MapPin, PackageCheck, Receipt, Truck } from "lucide-react";
 import { CtaBand } from "@/components/home/cta-band";
 import { Container, PageHeader } from "@/components/ui/section";
 import { about } from "@/content/about";
+import { pageSeo } from "@/content/seo";
 import { siteConfig } from "@/lib/config/site";
 import { pageMetadata } from "@/lib/seo";
 
-export const metadata = pageMetadata({
-  title: "About Munna Pen Center – Wholesale Stationery Supplier, Dhanbad",
-  description:
-    "Munna Pen Center is a wholesale stationery and office-supply supplier in Dhanbad, Jharkhand, supplying schools, offices, engineers, businesses, institutions and retailers across India.",
-  path: "/about",
-});
+export const metadata = pageMetadata({ ...pageSeo.about, path: "/about" });
 
 export default function AboutPage() {
   const { location, gst } = siteConfig;

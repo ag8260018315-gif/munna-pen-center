@@ -15,9 +15,9 @@ export const categories: Category[] = [
     summary: "Ball, gel and fountain pens, markers and highlighters for everyday writing.",
     description:
       "Writing instruments for schools, offices and institutions — ball pens, gel pens, fountain pens, markers and highlighters. Share your required type, colours and quantity and we will respond with a wholesale quotation.",
-    seoTitle: "Wholesale Pens Supplier in India – Ball, Gel & Marker Pens",
+    seoTitle: "Wholesale Pens Supplier in India",
     seoDescription:
-      "Buy pens in bulk from Munna Pen Center, Dhanbad. Ball pens, gel pens, markers and highlighters for schools, offices and retailers across India. Request a wholesale quote.",
+      "Buy pens in bulk from Dhanbad: ball, gel and marker pens and highlighters for schools, offices and retailers across India. Request a wholesale quote.",
     sortOrder: 1,
   },
   {
@@ -27,9 +27,9 @@ export const categories: Category[] = [
     summary: "Graphite and colour pencils, mechanical pencils, erasers and sharpeners.",
     description:
       "Pencils and related accessories for classrooms, drawing and drafting — graphite pencils, colour pencils, mechanical pencils with leads, erasers and sharpeners — available for bulk requirements.",
-    seoTitle: "Wholesale Pencils & Erasers – Bulk Supply Across India",
+    seoTitle: "Wholesale Pencils & Erasers in India",
     seoDescription:
-      "Graphite pencils, colour pencils, mechanical pencils, erasers and sharpeners in bulk from Munna Pen Center, Dhanbad, Jharkhand. Request a wholesale quote.",
+      "Graphite and colour pencils, mechanical pencils, erasers and sharpeners in bulk from Dhanbad, Jharkhand. Request a wholesale quote.",
     sortOrder: 2,
   },
   {
@@ -39,9 +39,9 @@ export const categories: Category[] = [
     summary: "Notebooks, geometry boxes, pencil boxes and everyday classroom essentials.",
     description:
       "Classroom and student essentials for schools, coaching institutes and educational organisations — notebooks, geometry boxes, pencil boxes, colouring sets, rulers and adhesives. Ideal for term-start and institutional bulk requirements.",
-    seoTitle: "School Stationery Wholesale – Bulk Supply for Schools in India",
+    seoTitle: "School Stationery Wholesale in India",
     seoDescription:
-      "School stationery wholesale from Munna Pen Center, Dhanbad: notebooks, geometry boxes, pencil boxes and classroom essentials for schools and institutions across India.",
+      "School stationery wholesale from Dhanbad: notebooks, geometry boxes, pencil boxes and classroom essentials for schools across India.",
     sortOrder: 3,
   },
   {
@@ -51,9 +51,9 @@ export const categories: Category[] = [
     summary: "Staplers, clips, tapes, sticky notes and desk essentials for offices.",
     description:
       "Everyday office stationery for businesses, institutions and administrative departments — staplers and pins, clips, sticky notes, tapes, scissors, stamp pads and desk organisers — supplied in bulk.",
-    seoTitle: "Office Stationery Supplier – Bulk Office Supplies in India",
+    seoTitle: "Office Stationery Supplier in India",
     seoDescription:
-      "Office stationery supplier in Dhanbad, Jharkhand. Staplers, clips, sticky notes, tapes and desk essentials for offices and businesses across India. Request a bulk quote.",
+      "Office stationery supplier in Dhanbad: staplers, clips, sticky notes, tapes and desk essentials in bulk across India. Request a quote.",
     sortOrder: 4,
   },
   {
@@ -63,9 +63,9 @@ export const categories: Category[] = [
     summary: "Drafting instruments, drawing sheets, set squares and technical drawing tools.",
     description:
       "Drawing and drafting supplies for engineering students, professionals and technical institutions — drawing instrument boxes, drawing sheets and graph paper, set squares, protractors and technical pens.",
-    seoTitle: "Engineering Stationery Supplier – Drafting & Drawing Supplies",
+    seoTitle: "Engineering Stationery Supplier India",
     seoDescription:
-      "Engineering stationery supplier in Dhanbad, Jharkhand: drafting instruments, drawing sheets, set squares and technical drawing supplies in bulk. Request a wholesale quote.",
+      "Engineering stationery supplier in Dhanbad: drafting instruments, drawing sheets, set squares and technical supplies in bulk. Request a quote.",
     sortOrder: 5,
   },
   {
@@ -75,9 +75,9 @@ export const categories: Category[] = [
     summary: "Basic, scientific and desktop calculators for study and office use.",
     description:
       "Calculators for students, engineers, accountants and offices — basic, scientific and desktop models. Tell us the type and quantity you need and we will confirm availability and wholesale pricing.",
-    seoTitle: "Wholesale Calculators – Scientific, Basic & Desktop | Bulk Supply",
+    seoTitle: "Wholesale Calculators in India",
     seoDescription:
-      "Buy calculators in bulk from Munna Pen Center, Dhanbad. Basic, scientific and desktop calculators for schools, engineers and offices across India.",
+      "Calculators in bulk from Dhanbad: basic, scientific and desktop models for schools, engineers and offices across India. Request a quote.",
     sortOrder: 6,
   },
   {
@@ -87,9 +87,9 @@ export const categories: Category[] = [
     summary: "Sketch pens, colours, brushes, sketchbooks and art and craft materials.",
     description:
       "Creative and drawing materials for schools, art classes and institutions — sketch pens, water colours, poster colours, oil pastels, brushes and sketchbooks.",
-    seoTitle: "Writing & Drawing Supplies Wholesale – Art & Craft Materials",
+    seoTitle: "Writing & Drawing Supplies Wholesale",
     seoDescription:
-      "Sketch pens, colours, brushes, sketchbooks and art supplies in bulk from Munna Pen Center, Dhanbad. Wholesale supply for schools and institutions across India.",
+      "Sketch pens, colours, brushes, sketchbooks and art supplies in bulk from Dhanbad for schools and institutions across India.",
     sortOrder: 7,
   },
   {
@@ -99,9 +99,9 @@ export const categories: Category[] = [
     summary: "Box files, ring binders, document folders and pocket files.",
     description:
       "Document organisation for offices, institutions and businesses — box files, ring binders, clear pocket files, document folders and file dividers.",
-    seoTitle: "Office Files & Folders Wholesale – Bulk Supply in India",
+    seoTitle: "Office Files & Folders Wholesale",
     seoDescription:
-      "Box files, ring binders, document folders and pocket files in bulk from Munna Pen Center, Dhanbad, Jharkhand. Request a wholesale quote for your office or institution.",
+      "Box files, ring binders, document folders and pocket files in bulk from Dhanbad, Jharkhand. Request a wholesale quote.",
     sortOrder: 8,
   },
   {
@@ -111,9 +111,9 @@ export const categories: Category[] = [
     summary: "Copier paper, registers, ledgers, notepads and envelopes.",
     description:
       "Paper products for offices, schools and businesses — copier paper, registers, ledgers and account books, notepads and memo pads, and envelopes.",
-    seoTitle: "Paper & Registers Wholesale – Copier Paper, Ledgers, Notepads",
+    seoTitle: "Paper & Registers Wholesale in India",
     seoDescription:
-      "Copier paper, registers, ledgers, notepads and envelopes in bulk from Munna Pen Center, Dhanbad. Wholesale paper supply for offices and institutions across India.",
+      "Copier paper, registers, ledgers, notepads and envelopes in bulk from Dhanbad for offices and institutions across India.",
     sortOrder: 9,
   },
   {
@@ -123,9 +123,9 @@ export const categories: Category[] = [
     summary: "Labels, correction products, ID card holders and more.",
     description:
       "Other stationery and office essentials that don't fit the categories above. If you can't find what you need, tell us — we will confirm whether we can supply it.",
-    seoTitle: "Other Stationery Supplies – Labels, Correction Fluid & More",
+    seoTitle: "Other Stationery Supplies Wholesale",
     seoDescription:
-      "Labels, correction products, ID card holders and other stationery in bulk from Munna Pen Center, Dhanbad. Ask us for any stationery requirement.",
+      "Labels, correction products, ID card holders and other stationery in bulk from Dhanbad. Ask us for any stationery requirement.",
     sortOrder: 10,
   },
 ];

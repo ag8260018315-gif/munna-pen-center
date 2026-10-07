@@ -51,6 +51,13 @@
     scroll-padding-top: 5rem;
   }
 
+  /* The fixed Call / WhatsApp / Get Quote bar (phones only) must never cover a focused control. */
+  @media (max-width: 767px) {
+    html {
+      scroll-padding-bottom: 4.5rem;
+    }
+  }
+
   body {
     background: #ffffff;
     color: var(--color-ink);
@@ -160,6 +167,16 @@
 
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* The scroll-driven reveal exists only for on-screen scrolling. Printing never scrolls (cards would print blank),
+   and scroll-driven animations ignore animation-duration, so the reduced-motion rule below cannot reach them. */
+@media print, (prefers-reduced-motion: reduce) {
+  .reveal {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
   }
 }
 

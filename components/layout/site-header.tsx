@@ -22,9 +22,10 @@ export function SiteHeader() {
         </nav>
 
         <div className="hidden items-center gap-3 lg:flex">
-          <ExternalButtonLink href={whatsappUrl} variant="secondary" size="sm" className="border-whatsapp/30 text-whatsapp hover:border-whatsapp hover:bg-whatsapp/5">
+          <ExternalButtonLink href={whatsappUrl} variant="secondary" size="sm" className="border-whatsapp/30 text-whatsapp hover:border-whatsapp hover:bg-whatsapp/5 max-xl:w-11 max-xl:px-0">
             <WhatsAppIcon className="size-4" />
-            WhatsApp Us
+            {/* Icon-only between 1024 and 1279px to keep the bar on one line; the text stays in the accessible name. */}
+            <span className="max-xl:sr-only">WhatsApp Us</span>
           </ExternalButtonLink>
           <QuoteCta size="sm" />
         </div>

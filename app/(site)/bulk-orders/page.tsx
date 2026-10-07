@@ -6,16 +6,12 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { ExternalButtonLink } from "@/components/ui/button";
 import { Container, PageHeader } from "@/components/ui/section";
 import { audiences } from "@/content/home";
+import { pageSeo } from "@/content/seo";
 import { siteConfig } from "@/lib/config/site";
 import { pageMetadata } from "@/lib/seo";
 import { buildWhatsAppUrl, whatsAppMessages } from "@/lib/whatsapp";
 
-export const metadata = pageMetadata({
-  title: "Bulk Stationery Orders – Wholesale Supplier for India",
-  description:
-    "Need stationery in bulk? Schools, offices, businesses, engineers, institutions and retailers can submit requirements to Munna Pen Center, Dhanbad, and receive a wholesale quotation.",
-  path: "/bulk-orders",
-});
+export const metadata = pageMetadata({ ...pageSeo.bulkOrders, path: "/bulk-orders" });
 
 const tips = [
   "The products you need — with sizes, colours or brands if you have a preference",

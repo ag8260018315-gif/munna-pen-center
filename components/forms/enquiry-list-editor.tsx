@@ -2,7 +2,7 @@
 
 import { ClipboardList, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { enquiryList, useEnquiryList } from "@/lib/client/enquiry-list";
 
 /**
@@ -11,6 +11,7 @@ import { enquiryList, useEnquiryList } from "@/lib/client/enquiry-list";
  */
 export function EnquiryListEditor({ preselect }: { preselect?: { slug: string; name: string } }) {
   const items = useEnquiryList();
+  const fieldsetRef = useRef<HTMLFieldSetElement>(null);
 
   // Arriving from a product's "Request Quote" button: make sure that product is on the list.
   useEffect(() => {
@@ -18,7 +19,7 @@ export function EnquiryListEditor({ preselect }: { preselect?: { slug: string; n
   }, [preselect]);
 
   return (
-    <fieldset className="rounded-xl border border-line bg-surface p-4 sm:p-5">
+    <fieldset ref={fieldsetRef} tabIndex={-1} className="rounded-xl border border-line bg-surface p-4 sm:p-5">
       <legend className="flex items-center gap-2 px-2 text-sm font-bold text-brand-900">
         <ClipboardList className="size-4 text-brand-600" aria-hidden="true" />
         Your enquiry list{items.length > 0 ? ` (${items.length})` : ""}
@@ -53,7 +54,11 @@ export function EnquiryListEditor({ preselect }: { preselect?: { slug: string; n
               </div>
               <button
                 type="button"
-                onClick={() => enquiryList.remove(item.slug)}
+                onClick={() => {
+                  enquiryList.remove(item.slug);
+                  // The focused Remove button is about to disappear: park focus on the list so it is not lost to <body>.
+                  fieldsetRef.current?.focus();
+                }}
                 className="inline-flex h-11 items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-red-700 hover:bg-red-50"
               >
                 <Trash2 className="size-4" aria-hidden="true" />

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { WhatsAppIcon } from "@/components/icons/whatsapp";
 import { ExternalButtonLink } from "@/components/ui/button";
 import { QuoteCta } from "@/components/layout/quote-cta";
@@ -15,17 +15,33 @@ export function MobileMenu({ items, whatsappUrl }: { items: NavItem[]; whatsappU
   // Remember the page the menu was opened on: navigating elsewhere closes it, no effect needed.
   const [openOn, setOpenOn] = useState<string | null>(null);
   const open = openOn === pathname;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (event: KeyboardEvent) => event.key === "Escape" && setOpenOn(null);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      // Hand focus back to the toggle if it was inside the menu, so keyboard users keep their place.
+      const focusWasInMenu = containerRef.current?.contains(document.activeElement) ?? false;
+      setOpenOn(null);
+      if (focusWasInMenu) toggleRef.current?.focus();
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) setOpenOn(null);
+    };
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onPointerDown);
+    };
   }, [open]);
 
   return (
-    <div className="lg:hidden">
+    <div ref={containerRef} className="lg:hidden">
       <button
+        ref={toggleRef}
         type="button"
         aria-expanded={open}
         aria-controls="mobile-menu"
@@ -50,6 +66,7 @@ export function MobileMenu({ items, whatsappUrl }: { items: NavItem[]; whatsappU
                   <Link
                     href={item.href}
                     aria-current={active ? "page" : undefined}
+                    onClick={() => setOpenOn(null)}
                     className={cn(
                       "block rounded-lg px-3 py-3 text-base font-semibold",
                       active ? "bg-brand-50 text-brand-800" : "text-ink hover:bg-surface",

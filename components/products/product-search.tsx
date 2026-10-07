@@ -24,9 +24,11 @@ export function ProductSearch({ categories, query, categorySlug }: { categories:
     return qs ? `/products?${qs}` : "/products";
   };
 
+  // grid-cols-1 (= minmax(0,1fr)) matters: without it the nowrap chip row's ~1,600px min-content widens the
+  // whole column on phones and pushes the search box off-screen.
   return (
-    <div className="grid gap-5">
-      <form action="/products" method="get" role="search" className="flex flex-col gap-3 sm:flex-row">
+    <div className="grid grid-cols-1 gap-5">
+      <form action="/products" method="get" role="search" className="flex min-w-0 flex-col gap-3 sm:flex-row">
         {categorySlug && <input type="hidden" name="category" value={categorySlug} />}
         <div className="relative flex-1">
           <label htmlFor="product-search" className="sr-only">
@@ -49,8 +51,8 @@ export function ProductSearch({ categories, query, categorySlug }: { categories:
         </Button>
       </form>
 
-      <nav aria-label="Filter by category">
-        <ul className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+      <nav aria-label="Filter by category" className="min-w-0">
+        <ul className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 pt-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
           <li>
             <Link href={href()} aria-current={!categorySlug ? "true" : undefined} className={chip(!categorySlug)}>
               All products

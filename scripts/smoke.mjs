@@ -39,8 +39,16 @@ async function checkPage(path, { status = 200, html = true } = {}) {
   if (!html) return;
 
   if (status === 200) {
+    const decode = (text) => text.replace(/&amp;/g, "&").replace(/&#x27;|&#39;/g, "'").replace(/&quot;/g, '"');
     const title = /<title>([^<]*)<\/title>/.exec(body)?.[1]?.trim();
     if (!title) fail(path, "missing <title>");
+    else {
+      const shown = decode(title);
+      if (shown.length > 60) fail(path, `title is ${shown.length} characters (search results cut at ~60): "${shown}"`);
+      if ((shown.match(/munna pen center/gi) ?? []).length > 1) fail(path, `brand name repeated in title: "${shown}"`);
+    }
+    const description = /<meta name="description" content="([^"]*)"/.exec(body)?.[1];
+    if (description && decode(description).length > 160) fail(path, `meta description is ${decode(description).length} characters (max 160)`);
     if (!/<meta name="description" content="[^"]{20,}"/.test(body)) fail(path, "missing meta description");
     const h1s = (body.match(/<h1[\s>]/g) ?? []).length;
     if (h1s !== 1) fail(path, `expected exactly one <h1>, found ${h1s}`);

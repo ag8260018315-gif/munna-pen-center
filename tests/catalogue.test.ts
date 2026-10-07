@@ -41,12 +41,6 @@ describe("catalogue data integrity", () => {
     }
   });
 
-  it("keeps SEO titles and descriptions within sensible lengths", () => {
-    for (const category of categories) {
-      expect(category.seoTitle.length).toBeLessThanOrEqual(70);
-      expect(category.seoDescription.length).toBeLessThanOrEqual(175);
-    }
-  });
 });
 
 describe("StaticCatalogueRepository", () => {

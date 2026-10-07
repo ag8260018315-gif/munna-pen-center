@@ -2,17 +2,13 @@ import { CheckCircle2 } from "lucide-react";
 import { ContactAside } from "@/components/forms/contact-aside";
 import { EnquiryForm } from "@/components/forms/enquiry-form";
 import { Container, PageHeader } from "@/components/ui/section";
+import { pageSeo } from "@/content/seo";
 import { getCatalogue } from "@/lib/repositories";
 import { pageMetadata } from "@/lib/seo";
 import { truncate } from "@/lib/text";
 import { whatsAppMessages } from "@/lib/whatsapp";
 
-export const metadata = pageMetadata({
-  title: "Request a Wholesale Quote",
-  description:
-    "Request a wholesale quotation for stationery and office supplies from Munna Pen Center, Dhanbad. Choose products, share quantities and we will respond with availability and pricing.",
-  path: "/request-quote",
-});
+export const metadata = pageMetadata({ ...pageSeo.requestQuote, path: "/request-quote" });
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
