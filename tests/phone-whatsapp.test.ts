@@ -5,36 +5,36 @@ import { buildEnquiryWhatsAppMessage, buildWhatsAppUrl, whatsAppMessages } from 
 
 describe("normaliseIndianMobile", () => {
   it.each([
-    ["7979025165", "+917979025165"],
-    ["+91 79790 25165", "+917979025165"],
-    ["91-7979025165", "+917979025165"],
-    ["07979025165", "+917979025165"],
-    [" (+91) 79790-25165 ", "+917979025165"],
+    ["7979025166", "+917979025166"],
+    ["+91 79790 25166", "+917979025166"],
+    ["91-7979025166", "+917979025166"],
+    ["07979025166", "+917979025166"],
+    [" (+91) 79790-25166 ", "+917979025166"],
   ])("normalises %s", (input, expected) => {
     expect(normaliseIndianMobile(input)).toBe(expected);
   });
 
-  it.each(["", "12345", "5979025166", "79790251657", "+1 202 555 0143", "abcdefghij"])("rejects %s", (input) => {
+  it.each(["", "12345", "5979025166", "79790251667", "+1 202 555 0143", "abcdefghij"])("rejects %s", (input) => {
     expect(normaliseIndianMobile(input)).toBeNull();
   });
 });
 
 describe("phone formatting", () => {
   it("formats for display and WhatsApp", () => {
-    expect(formatIndianPhone("+917979025165")).toBe("+91 79790 25165");
-    expect(toWhatsAppNumber("+917979025165")).toBe("917979025165");
+    expect(formatIndianPhone("+917979025166")).toBe("+91 79790 25166");
+    expect(toWhatsAppNumber("+917979025166")).toBe("917979025166");
   });
 });
 
 describe("WhatsApp links", () => {
   it("uses the business number in international format with no + or spaces", () => {
-    expect(siteConfig.contact.phoneE164).toBe("+917979025165");
-    expect(buildWhatsAppUrl()).toBe("https://wa.me/917979025165");
+    expect(siteConfig.contact.phoneE164).toBe("+917979025166");
+    expect(buildWhatsAppUrl()).toBe("https://wa.me/917979025166");
   });
 
   it("pre-fills the required messages, URL-encoded", () => {
     const general = new URL(buildWhatsAppUrl(whatsAppMessages.general));
-    expect(general.origin + general.pathname).toBe("https://wa.me/917979025165");
+    expect(general.origin + general.pathname).toBe("https://wa.me/917979025166");
     expect(general.searchParams.get("text")).toBe("Hello Munna Pen Center, I am interested in wholesale stationery products.");
 
     const bulk = new URL(buildWhatsAppUrl(whatsAppMessages.bulkOrder));

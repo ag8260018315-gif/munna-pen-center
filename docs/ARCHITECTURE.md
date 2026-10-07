@@ -98,6 +98,9 @@ Design notes:
 
 ### Connecting the database (Phase 2 checklist)
 
+> **Status:** the first migration (`prisma/migrations/0001_init`) is written and tested but **not run**. Read [`MIGRATION_0001_REVIEW.md`](MIGRATION_0001_REVIEW.md) first; it lists every table, relationship, row-level-security rule and risk, and needs the owner's approval before it is applied to Supabase.
+
+
 1. Provision PostgreSQL (Neon, Supabase, Railway, RDS…); set `DATABASE_URL`.
 2. `npm i @prisma/client`, add `@prisma/adapter-pg` per the Prisma 7 docs, `npx prisma migrate dev --name init`.
 3. Implement `PrismaCatalogueRepository` and `PrismaEnquiryRepository` against the interfaces in `lib/repositories/types.ts`. The enquiry implementation upserts a `Lead` by phone, then creates the `Enquiry` and its `EnquiryItem`s in one transaction.

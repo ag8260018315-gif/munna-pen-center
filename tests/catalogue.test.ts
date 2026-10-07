@@ -61,22 +61,31 @@ describe("catalogue data integrity", () => {
 describe("brands", () => {
   const owner = [
     "DOMS", "Natraj", "Pidilite", "Linc", "Flair", "Cello", "Faber-Castell", "Luxor", "Kangaro", "STP", "Montex",
-    "Artline", "Casio", "Shanti File", "Supra", "Goldex", "Reynolds", "Pierre Cardin", "Cello Tape", "Polo Tape", "Adhesive Tape", "Kores",
+    "Artline", "Casio", "Shanti File", "Supra", "Goldex", "Reynolds", "Pierre Cardin", "Polo Tape", "Kores",
   ];
 
-  it("keeps all 22 brands the owner listed, in their own list, separate from products", () => {
+  it("keeps the 20 brands, separate from products and categories", () => {
     expect(brands.map((b) => b.name)).toEqual(owner);
     expect(new Set(brands.map((b) => b.slug)).size).toBe(brands.length);
     for (const brand of brands) expect(Object.keys(brand).sort()).toEqual(["id", "listedPublicly", "name", "slug"]);
   });
 
-  it("shows publicly every brand except the two that are really product types", async () => {
-    const shown = (await repo.listBrands()).map((b) => b.name);
-    expect(shown).toHaveLength(20);
-    expect(shown).not.toContain("Cello Tape");
-    expect(shown).not.toContain("Adhesive Tape");
-    expect(shown).toContain("DOMS");
-    expect(shown).toContain("Polo Tape");
+  it("treats Cello Tape and Adhesive Tape as product types (categories), never as brands", () => {
+    const brandNames = brands.map((b) => b.name.toLowerCase());
+    expect(brandNames).not.toContain("cello tape");
+    expect(brandNames).not.toContain("adhesive tape");
+    const categoryNames = categories.map((c) => c.name);
+    expect(categoryNames).toContain("Cello Tape");
+    expect(categoryNames).toContain("Adhesive Tape");
+  });
+
+  it("brand names and category names do not overlap", () => {
+    const categoryNames = new Set(categories.map((c) => c.name.toLowerCase()));
+    expect(brands.filter((b) => categoryNames.has(b.name.toLowerCase()))).toEqual([]);
+  });
+
+  it("shows all of them publicly", async () => {
+    expect((await repo.listBrands()).map((b) => b.name)).toEqual(owner);
   });
 });
 

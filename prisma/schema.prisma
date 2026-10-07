@@ -202,21 +202,46 @@ enum ApprovalStatus {
 /// ───────────────────────────── Staff ─────────────────────────────
 
 model AdminUser {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  name         String
-  role         AdminRole @default(STAFF)
+  id               String    @id @default(cuid())
+  email            String    @unique
+  name             String
+  role             AdminRole @default(STAFF)
   /// Null until a sign-in method is chosen (credentials / email link / SSO).
-  passwordHash String?
-  isActive     Boolean   @default(true)
-  lastLoginAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  passwordHash     String?
+  isActive         Boolean   @default(true)
+  lastLoginAt      DateTime?
+  /// Brute-force protection: consecutive failed sign-ins, and the time before which sign-in is refused.
+  failedLoginCount Int       @default(0)
+  lockedUntil      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  sessions AdminSession[]
 
   assignedLeads     Lead[]
   assignedFollowUps FollowUp[]
   decidedApprovals  ApprovalRequest[]
   recordedPayments  Payment[]
+}
+
+/// A signed-in admin browser session (server-side sessions). The browser holds only a random token in an HttpOnly
+/// cookie; the database stores its SHA-256 hash, so a leaked table or backup cannot be used to sign in. Deleting a
+/// session (sign-out, expiry, "sign out everywhere") is the one place a hard delete is right.
+model AdminSession {
+  id         String   @id @default(cuid())
+  /// SHA-256 (hex) of the session token. Never the token itself.
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  lastSeenAt DateTime @default(now())
+  /// For the admin's "where am I signed in" list. Free text, length-limited by the application.
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  adminUserId String
+  adminUser   AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId])
+  @@index([expiresAt])
 }
 
 /// ──────────────────────────── Catalogue ───────────────────────────
@@ -329,7 +354,7 @@ model Lead {
   id               String     @id @default(cuid())
   name             String
   organizationName String?
-  /// E.164, e.g. +917979025165
+  /// E.164, e.g. +917979025166
   phone            String
   email            String?
   city             String?

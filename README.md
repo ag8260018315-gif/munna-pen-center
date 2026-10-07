@@ -28,15 +28,16 @@ npm run dev                     # http://localhost:3000
 | `npm run smoke` | Fetches every route of a **running** site and checks status, title, one `<h1>`, alt text, 404s, admin closed. `npm run smoke -- http://localhost:3100`, or `-- --dev` against `next dev` |
 | `npm run enquiries` | Prints enquiries saved by the website (`-- --json` for raw JSON, `-- 5` for the latest 5) |
 | `npm run db:validate` | Validates `prisma/schema.prisma` (works offline) |
+| `npm run db:test-migration` | Runs `prisma/tests/migration-checks.sql` against the throwaway database in `TEST_DATABASE_URL` (never production). CI does this on every push |
 
 ## What Version 1 includes
 
 - **Pages:** Home · Products (search, category filter, pagination) · Product detail · 23 category pages · Bulk Orders · Request Quote · About · Contact — all with clean URLs.
 - **Header** with *Request Bulk Quote* and *WhatsApp Us*, and a **sticky Call / WhatsApp / Get Quote bar on mobile**.
-- **Catalogue** — the 23 categories and 22 brands the owner listed, and the five products identified so far (glue guns, glue sticks, cello tape, adhesive tape, calculators); more are added by the owner later (see below). Cards show image, name, category, description and **“Get Wholesale Price” / “Request Quote”** — never a price. A category with nothing listed yet says so, offers a quote request, and is kept out of search results.
+- **Catalogue** — the 23 categories and 20 brands the owner listed, and the five products identified so far (glue guns, glue sticks, cello tape, adhesive tape, calculators); more are added by the owner later (see below). Cards show image, name, category, description and **“Get Wholesale Price” / “Request Quote”** — never a price. A category with nothing listed yet says so, offers a quote request, and is kept out of search results.
 - **Enquiry list** — visitors tap **Add to Enquiry** on products; the list (with optional quantities) becomes the product lines of the quote request.
 - **Forms** — bulk enquiry, quote request, contact. Server-side validation, inline errors, loading / success / error states, spam honeypot, a reference number on success, and a **pre-filled WhatsApp fallback** so a lead is never lost.
-- **WhatsApp** — click-to-chat links in the correct international format (`https://wa.me/917979025165`) with the pre-filled messages from the brief.
+- **WhatsApp** — click-to-chat links in the correct international format (`https://wa.me/917979025166`) with the pre-filled messages from the brief.
 - **SEO** — per-page titles & descriptions, canonical URLs, Open Graph / Twitter tags + generated share image, JSON-LD (Organization, WebSite, Breadcrumbs, FAQ), `sitemap.xml`, `robots.txt`, semantic headings, alt text, search-result pages kept out of the index.
 - **Performance & accessibility** — static pages where possible, self-hosted fonts, ~9 KB CSS, no UI library, JS limited to what interactivity needs (zod is server-only). Audited with axe-core against WCAG 2.2 AA: **0 violations** on every page at desktop and mobile widths.
 - **Architecture for what comes next** — repository interfaces, a Prisma schema for every business entity, an admin shell that is closed in production, and an AI-agent action policy that makes owner approval a hard rule. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/AI_SALES_AGENT.md`](docs/AI_SALES_AGENT.md).
@@ -82,7 +83,7 @@ Security headers (HSTS in production, `nosniff`, frame denial, referrer and perm
 | Colours, fonts, spacing | `app/globals.css` (`@theme`) |
 | Logo | `components/brand/logo.tsx`, `public/brand/*.svg`, `app/icon.svg` |
 
-**About the product list:** `data/products.ts` holds only the **five products the owner identified**; `data/categories.ts` the 23 categories and `data/brands.ts` the 22 brands (a separate list — brands are not products, nothing is attached to them). There are **no SKUs, prices, GST rates, HSN codes, stock or pack sizes** anywhere in the repo. The database schema has a place for all of them (`Product`: SKU, brand, category, unit, pack size, purchase / wholesale / retail price, GST rate, HSN, stock, minimum order quantity, image, active status) so the owner can add real products later from the admin. “Cello Tape” and “Adhesive Tape” were on the brand list but are product types, so they are not shown as brands until the owner confirms.
+**About the product list:** `data/products.ts` holds only the **five products the owner identified**; `data/categories.ts` the 23 categories and `data/brands.ts` the 20 brands (a separate list — brands are not products, nothing is attached to them). There are **no SKUs, prices, GST rates, HSN codes, stock or pack sizes** anywhere in the repo. The database schema has a place for all of them (`Product`: SKU, brand, category, unit, pack size, purchase / wholesale / retail price, GST rate, HSN, stock, minimum order quantity, image, active status) so the owner can add real products later from the admin. “Cello Tape” and “Adhesive Tape” are product types (categories), not brands.
 
 **GSTIN:** it is deliberately *not* in the code. Set the server-only `BUSINESS_GSTIN` environment variable (Vercel → Project → Settings → Environment Variables); the footer and About page show it when set.
 
@@ -133,4 +134,4 @@ docs/                 Architecture, AI sales agent, launch checklist
 
 ## Verified before hand-off
 
-`npm run check` (typecheck, ESLint, 244 unit tests) · production build · `npm run smoke` (41 routes) · 33-step browser run through search, enquiry list, validation errors, submissions, persistence, honeypot and the mobile bar · axe-core WCAG 2.2 AA on 10 pages × 2 viewports.
+`npm run check` (typecheck, ESLint, 256 unit tests) · production build · `npm run smoke` (41 routes) · 33-step browser run through search, enquiry list, validation errors, submissions, persistence, honeypot and the mobile bar · axe-core WCAG 2.2 AA on 10 pages × 2 viewports.

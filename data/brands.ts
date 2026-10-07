@@ -5,15 +5,12 @@ import type { Brand } from "@/lib/domain/types";
  * no product, SKU, price or stock is attached to any of them. Names are shown as plain text only —
  * no logos, and no claim of being an authorised dealer or distributor.
  *
- * "Cello Tape" and "Adhesive Tape" were on the owner's brand list but are product types (they are also
- * categories), so they are kept here for the database but not shown publicly until the owner confirms them.
+ * "Cello Tape" and "Adhesive Tape" are PRODUCT TYPES (categories), not brands, so they are deliberately not here.
+ * Brands and categories are separate lists and separate database tables.
  */
-const brand = (name: string, listedPublicly = true): Brand => ({
-  id: name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
-  slug: name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
-  name,
-  listedPublicly,
-});
+const slugify = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+const brand = (name: string): Brand => ({ id: slugify(name), slug: slugify(name), name, listedPublicly: true });
 
 export const brands: Brand[] = [
   brand("DOMS"),
@@ -34,8 +31,6 @@ export const brands: Brand[] = [
   brand("Goldex"),
   brand("Reynolds"),
   brand("Pierre Cardin"),
-  brand("Cello Tape", false),
   brand("Polo Tape"),
-  brand("Adhesive Tape", false),
   brand("Kores"),
 ];

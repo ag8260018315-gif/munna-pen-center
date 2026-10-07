@@ -16,6 +16,15 @@ jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # A throwaway PostgreSQL used only to prove the migration works. It is NOT Supabase and holds no real data.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci-only-password
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       NEXT_TELEMETRY_DISABLED: "1"
       # Build-time value only; the real domain is set in the deployment environment.
@@ -41,6 +50,18 @@ jobs:
 
       - name: Validate database schema
         run: npm run db:validate
+
+      - name: Migration applies to PostgreSQL and its rules hold
+        env:
+          PGPASSWORD: ci-only-password
+        run: |
+          psql -h localhost -U postgres -v ON_ERROR_STOP=1 -q -c "CREATE ROLE anon NOLOGIN" -c "CREATE ROLE authenticated NOLOGIN"
+          psql -h localhost -U postgres -v ON_ERROR_STOP=1 -q <<'SQL'
+          GRANT USAGE ON SCHEMA public TO anon, authenticated;
+          ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated;
+          SQL
+          psql -h localhost -U postgres -v ON_ERROR_STOP=1 -q -f prisma/migrations/0001_init/migration.sql
+          psql -h localhost -U postgres -v ON_ERROR_STOP=1 -q -t -f prisma/tests/migration-checks.sql
 
       - name: Build
         run: npm run build

@@ -15,10 +15,10 @@ beforeAll(async () => {
 });
 
 describe("records the business must keep are not deletable by accident", () => {
-  it("cascade-deletes only line items from their own parent document", () => {
+  it("cascade-deletes only line items from their own parent document (and sign-in sessions with their user)", () => {
     const withCascade = models().filter((m) => /onDelete: Cascade/.test(m.body)).map((m) => m.name).sort();
     // Deleting a Lead, Quotation, Order or Invoice must NOT silently take enquiries, approvals, GST lines or follow-ups with it.
-    expect(withCascade).toEqual(["EnquiryItem", "OrderItem", "QuotationItem"]);
+    expect(withCascade).toEqual(["AdminSession", "EnquiryItem", "OrderItem", "QuotationItem"]);
   });
 
   it.each([
@@ -211,5 +211,20 @@ describe("every relation states what happens on delete", () => {
   it("every table is listed for row-level security in the migration notes", () => {
     const header = schema.slice(0, schema.indexOf("generator client"));
     expect(header).toMatch(/ENABLE ROW LEVEL SECURITY/);
+  });
+});
+
+describe("admin sign-in data", () => {
+  it("stores only a hash of the session token, never the token", () => {
+    const session = model("AdminSession");
+    expect(session).toMatch(/\n\s*tokenHash\s+String\s+@unique/);
+    expect(session).not.toMatch(/\n\s*token\s+String/);
+    expect(session).toMatch(/\n\s*expiresAt\s+DateTime\s/);
+  });
+
+  it("locks out repeated failed sign-ins", () => {
+    const user = model("AdminUser");
+    expect(user).toMatch(/\n\s*failedLoginCount\s+Int\s+@default\(0\)/);
+    expect(user).toMatch(/\n\s*lockedUntil\s+DateTime\?/);
   });
 });

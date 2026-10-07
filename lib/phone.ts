@@ -9,7 +9,7 @@ const INDIA_COUNTRY_CODE = "91";
 
 /**
  * Normalises an Indian mobile number typed in any common format
- * ("7979025165", "+91 79790 25165", "07979025165", "91-7979025165") to E.164.
+ * ("7979025166", "+91 79790 25166", "07979025166", "91-7979025166") to E.164.
  * Returns `null` when the input is not a valid 10-digit Indian mobile number
  * (Indian mobiles start with 6, 7, 8 or 9).
  */
@@ -27,12 +27,12 @@ export function normaliseIndianMobile(input: string): string | null {
   return `+${INDIA_COUNTRY_CODE}${digits}`;
 }
 
-/** E.164 (`+917979025165`) → WhatsApp format (`917979025165`). */
+/** E.164 (`+917979025166`) → WhatsApp format (`917979025166`). */
 export function toWhatsAppNumber(e164: string): string {
   return e164.replace(/\D/g, "");
 }
 
-/** E.164 (`+917979025165`) → display format (`+91 79790 25165`). */
+/** E.164 (`+917979025166`) → display format (`+91 79790 25166`). */
 export function formatIndianPhone(e164: string): string {
   const digits = e164.replace(/\D/g, "");
   const national = digits.startsWith(INDIA_COUNTRY_CODE) ? digits.slice(2) : digits;

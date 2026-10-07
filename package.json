@@ -17,7 +17,8 @@
     "db:format": "prisma format",
     "check": "npm run typecheck && npm run lint && npm run test",
     "enquiries": "node scripts/list-enquiries.mjs",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "db:test-migration": "psql \"$TEST_DATABASE_URL\" -v ON_ERROR_STOP=1 -q -t -f prisma/tests/migration-checks.sql"
   },
   "dependencies": {
     "lucide-react": "^1.52.0",
