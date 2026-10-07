@@ -70,3 +70,35 @@ describe("migration 0001_init", () => {
     expect(ci).not.toMatch(/supabase\.co/);
   });
 });
+
+describe("the Supabase setup guide", () => {
+  it("names the three files it tells the owner to paste, and they exist", async () => {
+    const { access } = await import("node:fs/promises");
+    const guide = await readFile("docs/SUPABASE_SETUP.md", "utf8");
+    for (const file of ["prisma/migrations/0001_init/migration.sql", "prisma/tests/migration-checks.sql", "prisma/seed/catalogue.sql"]) {
+      expect(guide, file).toContain(file);
+      await expect(access(file)).resolves.toBeUndefined();
+    }
+    // It never asks the owner to hand over a secret.
+    expect(guide).toMatch(/never ask you for the database password/i);
+    expect(guide).not.toMatch(/postgres(ql)?:\/\/[^\s`]*:[^\s`\[]+@/); // no filled-in connection string
+  });
+});
+
+describe("the files pasted into the Supabase SQL Editor", () => {
+  const files = ["prisma/migrations/0001_init/migration.sql", "prisma/tests/migration-checks.sql", "prisma/seed/catalogue.sql"];
+
+  it("are pure ASCII — an em dash or other symbol can be mangled by a browser editor's own script rewriting", async () => {
+    for (const file of files) {
+      const text = await readFile(file, "utf8");
+      const bad = [...text].filter((character) => (character.codePointAt(0) ?? 0) > 126).slice(0, 5);
+      expect(bad, file).toEqual([]);
+    }
+  });
+
+  it("switch row level security on for every table with a plain, visible statement (so the editor adds nothing of its own)", () => {
+    const tables = [...sql.matchAll(/^CREATE TABLE "(\w+)"/gm)].map((m) => m[1]);
+    expect(tables.length).toBe(19);
+    for (const table of tables) expect(sql, table).toContain(`ALTER TABLE "${table}" ENABLE ROW LEVEL SECURITY;`);
+  });
+});

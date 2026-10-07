@@ -28,6 +28,7 @@ npm run dev                     # http://localhost:3000
 | `npm run smoke` | Fetches every route of a **running** site and checks status, title, one `<h1>`, alt text, 404s, admin closed. `npm run smoke -- http://localhost:3100`, or `-- --dev` against `next dev` |
 | `npm run enquiries` | Prints enquiries saved by the website (`-- --json` for raw JSON, `-- 5` for the latest 5) |
 | `npm run db:validate` | Validates `prisma/schema.prisma` (works offline) |
+| `npm run db:seed-sql` | Rewrites `prisma/seed/catalogue.sql` (the paste-able seed) from `data/`; a test fails if it is out of date |
 | `npm run db:seed` | Loads the owner-supplied categories, brands and five products into the database. **Dry run by default**; `-- --apply` writes, and only rows that are missing (never overwrites). Uses `DIRECT_URL` / `DATABASE_URL` from your shell or `.env.local` |
 | `npm run db:test-migration` | Runs `prisma/tests/migration-checks.sql` against the throwaway database in `TEST_DATABASE_URL` (never production). CI does this on every push |
 
@@ -38,7 +39,7 @@ npm run dev                     # http://localhost:3000
 - **Catalogue** — the 23 categories and 20 brands the owner listed, and the five products identified so far (glue guns, glue sticks, cello tape, adhesive tape, calculators); more are added by the owner later (see below). Cards show image, name, category, description and **“Get Wholesale Price” / “Request Quote”** — never a price. A category with nothing listed yet says so, offers a quote request, and is kept out of search results.
 - **Enquiry list** — visitors tap **Add to Enquiry** on products; the list (with optional quantities) becomes the product lines of the quote request.
 - **Forms** — bulk enquiry, quote request, contact. Server-side validation, inline errors, loading / success / error states, spam honeypot, a reference number on success, and a **pre-filled WhatsApp fallback** so a lead is never lost.
-- **WhatsApp** — click-to-chat links in the correct international format (`https://wa.me/917979025166`) with the pre-filled messages from the brief.
+- **WhatsApp** — click-to-chat links in the correct international format (`https://wa.me/917979025166`) with the pre-filled messages from the brief. The main number (79790 25166) is used for every WhatsApp link; a second number (80513 88653) is shown for calling only. Both live in `lib/config/site.ts`.
 - **SEO** — per-page titles & descriptions, canonical URLs, Open Graph / Twitter tags + generated share image, JSON-LD (Organization, WebSite, Breadcrumbs, FAQ), `sitemap.xml`, `robots.txt`, semantic headings, alt text, search-result pages kept out of the index.
 - **Performance & accessibility** — static pages where possible, self-hosted fonts, ~9 KB CSS, no UI library, JS limited to what interactivity needs (zod is server-only). Audited with axe-core against WCAG 2.2 AA: **0 violations** on every page at desktop and mobile widths.
 - **Architecture for what comes next** — repository interfaces, a Prisma schema for every business entity, an admin shell that is closed in production, and an AI-agent action policy that makes owner approval a hard rule. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/AI_SALES_AGENT.md`](docs/AI_SALES_AGENT.md).
@@ -61,7 +62,7 @@ No database connection, no admin sign-in, no AI agent, no WhatsApp Business API,
 
 ## Deploying
 
-Vercel step by step, including which environment variables to set and how to read a failed build: [`docs/DEPLOY_VERCEL.md`](docs/DEPLOY_VERCEL.md).
+Vercel step by step, including which environment variables to set and how to read a failed build: [`docs/DEPLOY_VERCEL.md`](docs/DEPLOY_VERCEL.md). Setting up the Supabase database, click by click and without sharing any password: [`docs/SUPABASE_SETUP.md`](docs/SUPABASE_SETUP.md).
 
 0. On Vercel set the environment variables from `.env.example` for Production (at least `NEXT_PUBLIC_SITE_URL`; later `DATABASE_URL`, `DIRECT_URL`, `SUPABASE_*`, `AUTH_SECRET`). Only `NEXT_PUBLIC_SITE_URL` is public; everything else stays server-side.
 1. Set **`NEXT_PUBLIC_SITE_URL`** to your real domain **at build time** (e.g. `https://www.yourdomain.in`). It feeds canonical URLs, the sitemap and social tags; `npm run build` warns if it is missing.

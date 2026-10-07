@@ -78,7 +78,7 @@ All foreign keys use `ON UPDATE CASCADE`. Ids are text (`cuid`), so there are no
 
 For **every** table in `public` (done by a loop, so `_prisma_migrations` is covered too):
 
-1. `ALTER TABLE … ENABLE ROW LEVEL SECURITY`
+1. `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` - written out once per table (so it is visible, and the Supabase SQL Editor adds nothing of its own) and then again by the loop
 2. `REVOKE ALL … FROM anon, authenticated` (Supabase's browser-facing roles)
 3. `CREATE POLICY "deny_api_access" … AS RESTRICTIVE FOR ALL TO anon, authenticated USING (false) WITH CHECK (false)` — a restrictive policy, so even a permissive policy added later by mistake cannot open a table
 4. `ALTER DEFAULT PRIVILEGES … REVOKE ALL … FROM anon, authenticated` so tables created later are not handed out either
@@ -124,6 +124,9 @@ There is no Supabase-user-level access at all. Every operation happens in the Ne
 - The checks run on plain PostgreSQL 16 with `anon` / `authenticated` simulated. **Please apply the migration first to a new, empty Supabase project (staging) and run `npm run db:test-migration` against it** before touching the real one.
 
 ## How to run it, once approved
+
+**Easiest, with no secrets shared:** follow [`SUPABASE_SETUP.md`](SUPABASE_SETUP.md) — paste three SQL files into the Supabase SQL Editor. The steps below are the command-line alternative.
+
 1. Create the Supabase project; copy `DATABASE_URL` (pooled), `DIRECT_URL` (direct), `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` into Vercel → Settings → Environment Variables (and `.env.local` for local work). Never commit them.
 2. With `DIRECT_URL` set in your shell: `npx prisma migrate deploy`.
 3. `TEST_DATABASE_URL=<a throwaway database, NOT production> npm run db:test-migration`.

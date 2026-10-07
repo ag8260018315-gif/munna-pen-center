@@ -19,6 +19,8 @@ Mark everything except `NEXT_PUBLIC_SITE_URL` as **Sensitive**. Paste only the v
 
 Changing a variable does **not** change an existing deployment — create a new deployment afterwards.
 
+Database setup (Supabase) is a separate click-by-click guide: [`SUPABASE_SETUP.md`](SUPABASE_SETUP.md).
+
 ## 3. Reading a failed build
 Open the deployment → **Build Logs** and read from `Collecting page data` or `Running TypeScript` down to the red lines.
 

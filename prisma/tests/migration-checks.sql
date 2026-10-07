@@ -1,7 +1,8 @@
--- Behavioural checks for migration 0001_init. Run against a THROWAWAY database that already has the migration applied:
+-- Behavioural checks for migration 0001_init. Run against a database that already has the migration applied:
 --   psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f prisma/tests/migration-checks.sql
--- Everything happens inside one transaction that is rolled back, so nothing is left behind. It never touches Supabase
--- unless you point it there — don't. Each "expect_fail" must raise; each plain statement must succeed.
+-- or paste the whole file into the Supabase SQL Editor and click Run: the result row says ALL MIGRATION CHECKS PASSED.
+-- Everything happens inside one transaction that is rolled back, so nothing is left behind. Run it on the EMPTY database
+-- right after applying the migration (before loading any real data), then confirm the tables are still empty. Each "expect_fail" must raise; each plain statement must succeed.
 BEGIN;
 
 CREATE FUNCTION pg_temp.expect_fail(label text, stmt text) RETURNS void LANGUAGE plpgsql AS $$
@@ -21,7 +22,7 @@ BEGIN
   RAISE NOTICE 'ok   %', label;
 END $$;
 
--- ───────────── catalogue ─────────────
+-- ------------- catalogue -------------
 INSERT INTO "Category" ("id","slug","name","updatedAt") VALUES ('c1','pens','Pens',now());
 INSERT INTO "Brand" ("id","slug","name","updatedAt") VALUES ('b1','doms','DOMS',now());
 INSERT INTO "Product" ("id","slug","name","categoryId","updatedAt") VALUES ('p1','glue-guns','Glue Guns','c1',now());
@@ -43,10 +44,10 @@ UPDATE "Product" SET "brandId" = 'b1' WHERE "id" = 'p1';
 SELECT pg_temp.expect_fail('deleting a brand that has products', $$DELETE FROM "Brand" WHERE "id" = 'b1'$$);
 SELECT pg_temp.expect_fail('two products with the same SKU', $$UPDATE "Product" SET "sku" = 'X1' WHERE "id" = 'p1'; INSERT INTO "Product" ("id","slug","name","categoryId","sku","updatedAt") VALUES ('p3','other','o','c1','X1',now())$$);
 
--- ───────────── people ─────────────
+-- ------------- people -------------
 INSERT INTO "AdminUser" ("id","email","name","role","updatedAt") VALUES ('u_owner','owner@example.test','Owner','OWNER',now()),('u_staff','staff@example.test','Staff','STAFF',now());
 SELECT pg_temp.expect_fail('admin e-mail with capitals', $$INSERT INTO "AdminUser" ("id","email","name","updatedAt") VALUES ('u3','Boss@Example.test','B',now())$$);
-SELECT pg_temp.expect_fail('lead phone not in +91… form', $$INSERT INTO "Lead" ("id","name","phone","updatedAt") VALUES ('l0','x','98765',now())$$);
+SELECT pg_temp.expect_fail('lead phone not in +91... form', $$INSERT INTO "Lead" ("id","name","phone","updatedAt") VALUES ('l0','x','98765',now())$$);
 INSERT INTO "Customer" ("id","organizationName","contactName","phone","updatedAt") VALUES ('cu1','School','Asha','+919876543210',now());
 INSERT INTO "Customer" ("id","organizationName","contactName","phone","updatedAt") VALUES ('cu2','Other','Ravi','+919876543211',now());
 SELECT pg_temp.expect_fail('malformed customer GSTIN', $$UPDATE "Customer" SET "gstin" = '123' WHERE "id" = 'cu1'$$);
@@ -54,7 +55,7 @@ INSERT INTO "Lead" ("id","name","phone","updatedAt") VALUES ('l1','Asha','+91987
 INSERT INTO "Enquiry" ("id","reference","source","productsRequired","leadId","updatedAt") VALUES ('e1','ENQ-20261007-AAAA','QUOTE_FORM','glue guns','l1',now());
 SELECT pg_temp.expect_fail('deleting a lead that has an enquiry', $$DELETE FROM "Lead" WHERE "id" = 'l1'$$);
 
--- ───────────── quotations ─────────────
+-- ------------- quotations -------------
 INSERT INTO "Quotation" ("id","number","createdBy","customerId","enquiryId","updatedAt") VALUES ('q1','QT-2026-0001','ADMIN','cu1','e1',now());
 SELECT pg_temp.expect_fail('sending a quotation that has no lines', $$UPDATE "Quotation" SET "status" = 'SENT', "subtotal"=1, "taxTotal"=0, "total"=1 WHERE "id" = 'q1'$$);
 INSERT INTO "QuotationItem" ("id","description","quantity","quotationId","productId") VALUES ('qi1','Glue Guns',10,'q1','p1');
@@ -95,7 +96,7 @@ SELECT pg_temp.expect_fail('changing a line of a sent quotation', $$UPDATE "Quot
 SELECT pg_temp.expect_fail('adding a line to a sent quotation', $$INSERT INTO "QuotationItem" ("id","description","quantity","quotationId") VALUES ('qi2','x',1,'q1')$$);
 SELECT pg_temp.expect_fail('deleting a quotation', $$DELETE FROM "Quotation" WHERE "id" = 'q1'$$);
 
--- ───────────── orders, invoices, payments ─────────────
+-- ------------- orders, invoices, payments -------------
 SELECT pg_temp.expect_fail('an order for a different customer than its quotation', $$INSERT INTO "Order" ("id","number","createdBy","customerId","quotationId","updatedAt") VALUES ('o_bad','ORD-1','ADMIN','cu2','q1',now())$$);
 INSERT INTO "Order" ("id","number","createdBy","customerId","quotationId","updatedAt") VALUES ('o1','ORD-2026-0001','ADMIN','cu1','q1',now());
 SELECT pg_temp.expect_fail('deleting an order', $$DELETE FROM "Order" WHERE "id" = 'o1'$$);
@@ -130,7 +131,7 @@ SELECT pg_temp.expect('deleting an admin user signs them out (their sessions go 
 UPDATE "Product" SET "updatedAt" = '2000-01-01' WHERE "id" = 'p1';
 SELECT pg_temp.expect('updatedAt is maintained by the database', (SELECT "updatedAt" > now() - interval '1 minute' FROM "Product" WHERE "id" = 'p1'));
 
--- ───────────── row level security ─────────────
+-- ------------- row level security -------------
 SELECT pg_temp.expect('RLS is enabled on EVERY table in public',
   NOT EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind = 'r' AND NOT c.relrowsecurity));
 SELECT pg_temp.expect('every table has the deny-all policy for API roles (only checked where the roles exist)',
@@ -156,5 +157,7 @@ BEGIN
   END IF;
 END $$;
 
+-- Reaching this line means every check above passed (a failed check raises an error and stops the script).
+SELECT 'ALL MIGRATION CHECKS PASSED' AS result;
+
 ROLLBACK;
-\echo ALL MIGRATION CHECKS PASSED

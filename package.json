@@ -20,7 +20,8 @@
     "smoke": "node scripts/smoke.mjs",
     "db:test-migration": "psql \"$TEST_DATABASE_URL\" -v ON_ERROR_STOP=1 -q -t -f prisma/tests/migration-checks.sql",
     "postinstall": "prisma generate",
-    "db:seed": "tsx scripts/seed-catalogue.ts"
+    "db:seed": "tsx scripts/seed-catalogue.ts",
+    "db:seed-sql": "tsx scripts/write-seed-sql.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
