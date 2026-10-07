@@ -42,6 +42,12 @@ export default function ContactPage() {
                   <a href={`tel:${contact.phoneE164}`} className="text-lg font-bold text-brand-800 hover:underline">
                     {contact.phoneDisplay}
                   </a>
+                  {contact.additionalPhones.length > 0 && <p className="mt-3 text-sm font-semibold text-muted">Phone</p>}
+                  {contact.additionalPhones.map((phone) => (
+                    <a key={phone.e164} href={`tel:${phone.e164}`} className="block text-lg font-bold text-brand-800 hover:underline">
+                      {phone.display}
+                    </a>
+                  ))}
                 </div>
               </div>
               {contact.email && (
@@ -68,6 +74,12 @@ export default function ContactPage() {
                 <Phone className="size-4" aria-hidden="true" />
                 Call {contact.phoneDisplay}
               </ExternalButtonLink>
+              {contact.additionalPhones.map((phone) => (
+                <ExternalButtonLink key={phone.e164} href={`tel:${phone.e164}`} variant="secondary" size="lg" className="w-full">
+                  <Phone className="size-4" aria-hidden="true" />
+                  Call {phone.display}
+                </ExternalButtonLink>
+              ))}
             </div>
           </section>
 

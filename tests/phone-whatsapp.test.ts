@@ -62,3 +62,41 @@ describe("WhatsApp links", () => {
     expect(message.length).toBeLessThan(800);
   });
 });
+
+describe("the business phone numbers", () => {
+  // Built from pieces so this file does not itself contain the wrong number it guards against.
+  const WRONG = "797902516" + "5";
+
+  it("main number 79790 25166 (phone and WhatsApp) plus a second number to call", () => {
+    expect(siteConfig.contact.phoneE164).toBe("+917979025166");
+    expect(siteConfig.contact.phoneDisplay).toBe("+91 79790 25166");
+    expect(siteConfig.contact.additionalPhones).toEqual([{ e164: "+918051388653", display: "+91 80513 88653" }]);
+  });
+
+  it("WhatsApp links only ever use the main number — the second number is not known to be on WhatsApp", () => {
+    for (const url of [buildWhatsAppUrl(), buildWhatsAppUrl(whatsAppMessages.general), buildWhatsAppUrl(whatsAppMessages.bulkOrder), buildWhatsAppUrl("anything")]) {
+      expect(url).toContain("wa.me/917979025166");
+      expect(url).not.toContain("918051388653");
+    }
+  });
+
+  it("the number the owner said is wrong appears nowhere in the project", async () => {
+    const { readdir, readFile } = await import("node:fs/promises");
+    const offenders: string[] = [];
+    const skip = new Set(["node_modules", ".next", ".git", "generated", ".data"]);
+    async function walk(dir: string) {
+      for (const entry of await readdir(dir, { withFileTypes: true })) {
+        if (skip.has(entry.name)) continue;
+        const full = `${dir}/${entry.name}`;
+        if (entry.isDirectory()) await walk(full);
+        else if (/\.(tsx?|mjs|json|md|sql|prisma|ya?ml|css|svg|txt|example)$/.test(entry.name) || entry.name.startsWith(".env")) {
+          const text = await readFile(full, "utf8");
+          const spaced = `${WRONG.slice(0, 5)} ${WRONG.slice(5)}`;
+          if (text.includes(WRONG) || text.includes(spaced) || text.includes(`${WRONG.slice(0, 5)}-${WRONG.slice(5)}`)) offenders.push(full);
+        }
+      }
+    }
+    await walk(".");
+    expect(offenders).toEqual([]);
+  });
+});

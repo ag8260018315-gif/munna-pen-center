@@ -12,12 +12,19 @@ export function ContactAside({ whatsappMessage = whatsAppMessages.general }: { w
       <h2 id="aside-title" className="text-lg font-extrabold">
         Prefer to talk?
       </h2>
-      <p className="-mt-2 text-muted">Reach us directly on the number below.</p>
-      <p className="flex items-center gap-3 font-semibold">
-        <Phone className="size-5 text-brand-500" aria-hidden="true" />
-        <a href={`tel:${contact.phoneE164}`} className="text-brand-800 hover:underline">
-          {contact.phoneDisplay}
-        </a>
+      <p className="-mt-2 text-muted">Reach us directly on the numbers below.</p>
+      <p className="flex items-start gap-3 font-semibold">
+        <Phone className="mt-0.5 size-5 shrink-0 text-brand-500" aria-hidden="true" />
+        <span className="grid gap-1">
+          <a href={`tel:${contact.phoneE164}`} className="text-brand-800 hover:underline">
+            {contact.phoneDisplay}
+          </a>
+          {contact.additionalPhones.map((phone) => (
+            <a key={phone.e164} href={`tel:${phone.e164}`} className="text-brand-800 hover:underline">
+              {phone.display}
+            </a>
+          ))}
+        </span>
       </p>
       <p className="flex items-start gap-3 text-ink">
         <MapPin className="mt-0.5 size-5 shrink-0 text-brand-500" aria-hidden="true" />

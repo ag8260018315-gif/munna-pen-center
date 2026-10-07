@@ -12,6 +12,11 @@ import { normaliseSiteUrl } from "@/lib/site-url-check";
 const phoneE164 = normaliseIndianMobile("7979025166");
 if (!phoneE164) throw new Error("siteConfig: business phone number is not a valid Indian mobile number");
 
+// A second number to CALL. Only the main number above is used for WhatsApp links, because the owner has not said the
+// second one is on WhatsApp.
+const secondPhoneE164 = normaliseIndianMobile("8051388653");
+if (!secondPhoneE164) throw new Error("siteConfig: second business phone number is not a valid Indian mobile number");
+
 export const siteConfig = {
   name: "Munna Pen Center",
   tagline: "Wholesale Stationery & Office Supplies",
@@ -37,8 +42,11 @@ export const siteConfig = {
   },
 
   contact: {
+    /** Main number: phone AND WhatsApp. Every WhatsApp link on the site uses this one. */
     phoneE164,
     phoneDisplay: formatIndianPhone(phoneE164),
+    /** Further numbers, shown for calling only (never used for WhatsApp links). */
+    additionalPhones: [{ e164: secondPhoneE164, display: formatIndianPhone(secondPhoneE164) }],
     email: "munnapen123@gmail.com" as string | null,
     /** Not provided yet. */
     businessHours: null as string | null,

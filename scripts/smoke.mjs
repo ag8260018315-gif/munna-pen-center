@@ -91,6 +91,17 @@ for (const path of linkedCategories.filter((link) => !sitemapPaths.includes(link
   await checkPage(path, { expect: [/tell us what you need/i, /noindex/] });
 }
 
+// Both phone numbers are on the Contact page (as tel: links); WhatsApp links use the main number only.
+{
+  const contact = await get("/contact");
+  for (const tel of ["tel:+917979025166", "tel:+918051388653"]) if (!contact.body.includes(tel)) fail("/contact", `missing ${tel}`);
+  for (const path of ["/", "/contact", "/bulk-orders"]) {
+    const page = await get(path);
+    if (page.body.includes("wa.me/918051388653")) fail(path, "WhatsApp link points at the call-only second number");
+    if (!page.body.includes("wa.me/917979025166")) fail(path, "no WhatsApp link to the main number");
+  }
+}
+
 // Request-time (query-driven) variants.
 for (const [path, expect] of [
   ["/products?q=tape", [PRODUCT_LINK]],

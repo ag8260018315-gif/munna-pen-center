@@ -67,11 +67,18 @@ export async function SiteFooter() {
                 {location.locality}, {location.region}, {location.country}
               </span>
             </p>
-            <p className="flex items-center gap-2.5">
-              <Phone className="size-4 shrink-0 text-accent-300" aria-hidden="true" />
-              <a href={`tel:${contact.phoneE164}`} className={linkClass}>
-                {contact.phoneDisplay}
-              </a>
+            <p className="flex items-start gap-2.5">
+              <Phone className="mt-0.5 size-4 shrink-0 text-accent-300" aria-hidden="true" />
+              <span className="grid gap-1.5">
+                <a href={`tel:${contact.phoneE164}`} className={linkClass}>
+                  {contact.phoneDisplay}
+                </a>
+                {contact.additionalPhones.map((phone) => (
+                  <a key={phone.e164} href={`tel:${phone.e164}`} className={linkClass}>
+                    {phone.display}
+                  </a>
+                ))}
+              </span>
             </p>
             <p className="flex items-center gap-2.5">
               <WhatsAppIcon className="size-4 shrink-0 text-accent-300" />

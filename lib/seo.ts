@@ -69,12 +69,12 @@ export function organizationJsonLd() {
       ...(location.postalCode ? { postalCode: location.postalCode } : {}),
     },
     areaServed: { "@type": "Country", name: location.country },
-    contactPoint: {
+    contactPoint: [contact.phoneE164, ...contact.additionalPhones.map((phone) => phone.e164)].map((telephone) => ({
       "@type": "ContactPoint",
       contactType: "sales",
-      telephone: contact.phoneE164,
+      telephone,
       areaServed: location.countryCode,
-    },
+    })),
     ...(contact.email ? { email: contact.email } : {}),
   };
 }
