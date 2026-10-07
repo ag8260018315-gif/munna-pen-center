@@ -92,7 +92,7 @@ export interface Enquiry {
   status: EnquiryStatus;
   name: string;
   organization?: string;
-  /** E.164, e.g. +917979025166 */
+  /** E.164, e.g. +917979025165 */
   phone: string;
   email?: string;
   city?: string;
