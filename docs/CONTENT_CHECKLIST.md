@@ -6,8 +6,8 @@ The site never invents facts, so anything not supplied is either hidden or shown
 
 - [ ] **Domain name** — set `NEXT_PUBLIC_SITE_URL` (at build time) so canonical URLs, the sitemap and social previews are correct.
 - [ ] **Hosting that keeps enquiries** — a server with a persistent disk, **or** connect the database first (see README → *How enquiries work*). On serverless hosting, form submissions can only fall back to WhatsApp.
-- [x] **Categories, brands and first products** — supplied by the owner (23 categories, 20 brands, 5 products). Add real products (with SKU, brand, unit, pack size, prices, GST, HSN, stock, minimum order quantity and photo) from the admin once it exists. Cello Tape and Adhesive Tape are product types (categories), not brands.
-- [ ] **Where enquiries are read** — until the admin is built: with Supabase connected, open the Supabase Table Editor (`Enquiry`, `Lead`); on a server with a persistent disk, run `npm run enquiries` (or check `.data/enquiries.jsonl`). Also keep an eye on WhatsApp. Decide who checks, and how often.
+- [x] **Categories, brands and first products** — supplied by the owner (23 categories, 20 brands, 5 products). Add real products (with SKU, brand, unit, pack size, prices, GST, HSN, stock, minimum order quantity) in the admin (`/admin/products`); photo upload comes later. Cello Tape and Adhesive Tape are product types (categories), not brands.
+- [ ] **Where enquiries are read** — in the admin: `/admin/enquiries` (needs the database and your admin account, see [`ADMIN.md`](ADMIN.md)). Also keep an eye on WhatsApp. Decide who checks, and how often.
 
 ## Business details (`lib/config/site.ts`, `.env`)
 

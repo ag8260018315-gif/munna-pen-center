@@ -42,11 +42,11 @@ npm run dev                     # http://localhost:3000
 - **WhatsApp** — click-to-chat links in the correct international format (`https://wa.me/917979025165`) with the pre-filled messages from the brief. The main number (79790 25165) is used for every WhatsApp link; a second number (80513 88653) is shown for calling only. Both live in `lib/config/site.ts`.
 - **SEO** — per-page titles & descriptions, canonical URLs, Open Graph / Twitter tags + generated share image, JSON-LD (Organization, WebSite, Breadcrumbs, FAQ), `sitemap.xml`, `robots.txt`, semantic headings, alt text, search-result pages kept out of the index.
 - **Performance & accessibility** — static pages where possible, self-hosted fonts, ~9 KB CSS, no UI library, JS limited to what interactivity needs (zod is server-only). Audited with axe-core against WCAG 2.2 AA: **0 violations** on every page at desktop and mobile widths.
-- **Architecture for what comes next** — repository interfaces, a Prisma schema for every business entity, an admin shell that is closed in production, and an AI-agent action policy that makes owner approval a hard rule. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/AI_SALES_AGENT.md`](docs/AI_SALES_AGENT.md).
+- **Architecture for what comes next** — repository interfaces, a Prisma schema for every business entity, an admin with its own sign-in (closed in production until a database is connected), and an AI-agent action policy that makes owner approval a hard rule. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/AI_SALES_AGENT.md`](docs/AI_SALES_AGENT.md).
 
 ### What Version 1 deliberately does *not* include
 
-No database connection, no admin sign-in, no AI agent, no WhatsApp Business API, no payments, no invoices, no online prices or stock. The admin dashboard is a foundation only (its sections say “Not built yet”) and **returns 404 in production**. These are the next phases — the code is structured for them but none of it is faked.
+No AI agent, no WhatsApp Business API, no payments, no invoices, no online prices or stock. The admin can sign in and manage products, brands, categories, stock and enquiries ([`docs/ADMIN.md`](docs/ADMIN.md)); quotations, orders, invoices and payments are still “Soon”, and the admin **returns 404 in production** until a database is connected. These are the next phases — the code is structured for them but none of it is faked.
 
 ---
 
@@ -100,7 +100,7 @@ Security headers (HSTS in production, `nosniff`, frame denial, referrer and perm
 ```
 app/                  Next.js routes
   (site)/             Public pages (header, footer, mobile action bar)
-  admin/              Admin foundation — closed in production
+  admin/              Admin: (auth) sign-in + setup, (console) dashboard and catalogue screens
   actions/enquiry.ts  Server actions behind the forms
 components/           UI: layout, home sections, products, forms, brand, illustrations, admin
 content/              Editable page copy

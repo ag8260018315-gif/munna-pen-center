@@ -26,8 +26,9 @@ const LEAD_SOURCE: Record<EnquirySource, LeadSource> = {
 const MAX_REFERENCE_ATTEMPTS = 4;
 
 function isUniqueViolation(error: unknown, field: string): boolean {
-  const e = error as { code?: string; meta?: { target?: unknown } } | null;
-  return e?.code === "P2002" && JSON.stringify(e.meta?.target ?? "").includes(field);
+  // With the pg driver adapter the violated index is named inside `meta` (e.g. "Enquiry_reference_key"), not in `meta.target`.
+  const e = error as { code?: string; meta?: unknown } | null;
+  return e?.code === "P2002" && JSON.stringify(e.meta ?? "").includes(field);
 }
 
 export class PrismaEnquiryRepository implements EnquiryRepository {

@@ -15,6 +15,7 @@ Mark everything except `NEXT_PUBLIC_SITE_URL` as **Sensitive**. Paste only the v
 | `DATABASE_URL` | once Supabase exists | Supabase **pooled** connection string |
 | `DIRECT_URL` | once Supabase exists | Supabase **direct** connection string (migrations only) |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | once Supabase exists | Server-side only; the service-role key must never be shared or committed |
+| `ADMIN_SETUP_TOKEN` | once, to create the first admin | A long random key that unlocks `/admin/setup`. **Delete it after the owner account is created.** See [`ADMIN.md`](ADMIN.md) |
 | `CATALOGUE_SOURCE` | later | Leave unset (built-in catalogue) until real products are loaded; then `database` |
 
 Changing a variable does **not** change an existing deployment — create a new deployment afterwards.

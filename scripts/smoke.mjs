@@ -124,12 +124,30 @@ if (!dev) {
   await checkPage("/categories/not-a-category", { status: 404 });
 }
 
-// Admin: closed in production, previewable in dev.
-await checkPage("/admin", { status: dev ? 200 : 404, html: dev });
-await checkPage("/admin/enquiries", { status: dev ? 200 : 404, html: false });
-if (!dev) {
-  const { body } = await get("/admin");
-  if (/Sales pipeline|Admin dashboard/i.test(body)) fail("/admin", "admin UI leaked in production");
+// Admin: with no database it is closed in production (404) and previewable in dev; with a database every admin page must
+// send a stranger to the sign-in page, and the sign-in page itself must work.
+for (const path of ["/admin", "/admin/products", "/admin/enquiries"]) {
+  checked++;
+  let result;
+  try {
+    result = await get(path);
+  } catch (error) {
+    fail(path, `request failed: ${error.message}`);
+    continue;
+  }
+  const { res, body } = result;
+  const location = res.headers.get("location") ?? "";
+  const toLogin = [301, 302, 303, 307, 308].includes(res.status) && /\/admin\/login$/.test(location);
+  const closed = res.status === 404;
+  const preview = dev && res.status === 200;
+  if (!(toLogin || closed || preview)) fail(path, `expected 404 or a redirect to /admin/login, got HTTP ${res.status} ${location}`);
+  if (!dev && /Sales pipeline|Admin dashboard|At a glance/i.test(body)) fail(path, "admin UI leaked to a visitor who is not signed in");
+}
+{
+  checked++;
+  const { res } = await get("/admin/login");
+  // 404 = no database configured (area closed); 200 = sign-in page.
+  if (![200, 404].includes(res.status)) fail("/admin/login", `expected 200 or 404, got ${res.status}`);
 }
 
 // robots.txt must keep admin out of search results.

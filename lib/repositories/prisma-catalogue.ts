@@ -17,8 +17,18 @@ import type { CatalogueRepository } from "@/lib/repositories/types";
 
 const SNAPSHOT_TTL_MS = 30_000;
 
+/**
+ * Bumped by the admin whenever it changes the catalogue, so the instance that handled the change shows it at once.
+ * (Other server instances pick it up within SNAPSHOT_TTL_MS.)
+ */
+let generation = 0;
+export function invalidateCatalogueSnapshot() {
+  generation++;
+}
+
 interface Snapshot {
   at: number;
+  generation: number;
   repo: StaticCatalogueRepository;
 }
 
@@ -26,6 +36,7 @@ export class PrismaCatalogueRepository implements CatalogueRepository {
   private snapshot: Promise<Snapshot> | undefined;
 
   private async load(): Promise<Snapshot> {
+    const startedAtGeneration = generation; // a change made while loading must not be cached as current
     const db = getDb();
     const [categories, brands, products] = await Promise.all([
       db.category.findMany({
@@ -87,13 +98,13 @@ export class PrismaCatalogueRepository implements CatalogueRepository {
       isFeatured: p.isFeatured,
     }));
 
-    return { at: Date.now(), repo: new StaticCatalogueRepository(domainCategories, domainProducts, domainBrands) };
+    return { at: Date.now(), generation: startedAtGeneration, repo: new StaticCatalogueRepository(domainCategories, domainProducts, domainBrands) };
   }
 
   private async current(): Promise<StaticCatalogueRepository> {
     if (this.snapshot) {
       const existing = await this.snapshot.catch(() => undefined);
-      if (existing && Date.now() - existing.at < SNAPSHOT_TTL_MS) return existing.repo;
+      if (existing && existing.generation === generation && Date.now() - existing.at < SNAPSHOT_TTL_MS) return existing.repo;
     }
     const fresh = this.load();
     this.snapshot = fresh;

@@ -131,11 +131,16 @@ app/actions/enquiry.ts
 
 Later channels (WhatsApp webhook, AI agent, phone entry in the admin) call the **same** preparation/repository functions, so every enquiry lands in one pipeline regardless of where it came from (`EnquirySource`).
 
-## 4. Admin foundation
+## 4. Admin
 
-- Routes: `app/admin` (dashboard) and `app/admin/[section]` for the 14 sections in `lib/admin/sections.ts`. Each section page states what it will manage, which entities it uses and what it needs first — **no fake data or buttons**.
-- Access: `proxy.ts` rewrites every `/admin/*` request to a 404 in production, and `requireAdmin()` (`lib/auth/guard.ts`) does the same inside the app. In development a labelled preview session lets the shell be reviewed. Admin responses are `noindex` and `no-store`.
-- **Phase 2:** implement `requireAdmin()` against a real session (Auth.js or signed-cookie sessions with `AUTH_SECRET`, backed by `AdminUser`), let `proxy.ts` pass requests that carry a session cookie, and make **every admin data function call `requireAdmin()` / `requireOwner()` itself** — a layout check is not enough because layouts do not re-render on client-side navigation.
+Full guide: [`ADMIN.md`](ADMIN.md). In short:
+
+- **Sign-in:** own accounts in `AdminUser` (scrypt password hashes) and server-side sessions in `AdminSession` (only a SHA-256 *hash* of the random token is stored; the browser holds it in an HttpOnly `__Host-` cookie). Sessions end after 12 hours, or 2 hours idle. Five wrong passwords lock the account for 15 minutes; every failure looks identical to the caller.
+- **First owner:** `/admin/setup`, switched on only by the `ADMIN_SETUP_TOKEN` environment variable and only while no admin exists (advisory-locked so two simultaneous setups can not both win).
+- **Layers:** `proxy.ts` is a cheap first filter (no cookie → sign-in page; no database in production → 404). `requireAdmin()` / `requireOwner()` in `lib/auth/guard.ts` are the authority, and **every admin data function and server action calls them itself** (a test checks this) — layouts do not re-run on client navigation and server actions can be POSTed directly.
+- **Routes:** `app/admin/(auth)` (login, setup) and `app/admin/(console)` (dashboard, products, brands, categories, inventory, enquiries; the other sections of `lib/admin/sections.ts` are still placeholders marked "Soon"). Admin responses are `noindex` and `no-store`.
+- **Data:** `lib/admin/catalogue-admin.ts` is the admin repository for the catalogue. Forms are validated by `lib/validation/admin-catalogue.ts`; a blank box is stored as NULL, never as a default. Prices, GST and HSN can be changed by the OWNER only. Nothing is deleted — products, brands and categories are deactivated, so quotations and invoices that mention them stay valid.
+- Admin writes call `invalidateCatalogueSnapshot()` and `revalidatePath("/", "layout")`, so the public site shows a change at once on the instance that handled it (other instances within 30 seconds).
 
 ## 5. Environment variables
 

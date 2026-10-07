@@ -13,5 +13,8 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts"],
+    // The database tests share ONE PostgreSQL and clean up by id prefix, so test files must not overlap in time
+    // (one file's clean-up deleted a category another file's products still referenced).
+    fileParallelism: false,
   },
 });

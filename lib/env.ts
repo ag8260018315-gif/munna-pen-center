@@ -63,6 +63,12 @@ export const serverEnvSchema = z.object({
   /** Phase 2 — admin authentication. Generate with `openssl rand -base64 32`. */
   AUTH_SECRET: optionalString,
 
+  /**
+   * One-time key that unlocks /admin/setup so the owner can create the FIRST admin account. Only works while there are
+   * no admin users. Remove it from Vercel afterwards. Choose a long random value (`openssl rand -base64 24`).
+   */
+  ADMIN_SETUP_TOKEN: optionalString,
+
   /** Phase 3 — AI sales agent (LLM provider key). */
   AI_API_KEY: optionalString,
 
