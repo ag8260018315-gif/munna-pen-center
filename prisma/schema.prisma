@@ -426,14 +426,16 @@ model QuotationItem {
 }
 
 model Order {
-  id       String      @id @default(cuid())
+  id        String      @id @default(cuid())
   /// e.g. ORD-2026-0001
-  number   String      @unique
-  status   OrderStatus @default(PENDING_CONFIRMATION)
-  currency String      @default("INR")
-  subtotal Decimal     @default(0) @db.Decimal(12, 2)
-  taxTotal Decimal     @default(0) @db.Decimal(12, 2)
-  total    Decimal     @default(0) @db.Decimal(12, 2)
+  number    String      @unique
+  status    OrderStatus @default(PENDING_CONFIRMATION)
+  /// Who created this order (staff, the AI agent via an approved action, or the system).
+  createdBy ActorType   @default(ADMIN)
+  currency  String      @default("INR")
+  subtotal  Decimal     @default(0) @db.Decimal(12, 2)
+  taxTotal  Decimal     @default(0) @db.Decimal(12, 2)
+  total     Decimal     @default(0) @db.Decimal(12, 2)
 
   shippingLine1     String?
   shippingCity      String?
@@ -485,11 +487,13 @@ model OrderItem {
 }
 
 model Invoice {
-  id     String        @id @default(cuid())
+  id        String        @id @default(cuid())
   /// Consecutive serial number required on GST invoices. NULL while DRAFT; allocated from NumberSequence at the
   /// moment the invoice is ISSUED (never before — drafts must not burn numbers and leave gaps).
-  number String?       @unique
-  status InvoiceStatus @default(DRAFT)
+  number    String?       @unique
+  status    InvoiceStatus @default(DRAFT)
+  /// Who created this invoice (staff, the AI agent via an approved action, or the system).
+  createdBy ActorType     @default(ADMIN)
 
   issueDate DateTime?
   dueDate   DateTime?

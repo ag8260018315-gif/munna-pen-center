@@ -162,3 +162,84 @@ describe("npm run enquiries (owner's viewer)", () => {
     expect(out.split("\n").filter((line) => line.startsWith("ENQ-"))).toEqual([expect.stringContaining("ENQ-20261006-REAL")]);
   });
 });
+
+describe("npm run enquiries finds the store the way the server does", () => {
+  let root: string;
+  beforeEach(async () => {
+    root = await mkdtemp(path.join(os.tmpdir(), "mpc-viewer-env-"));
+  });
+  afterEach(async () => {
+    await rm(root, { recursive: true, force: true });
+  });
+
+  const record = (n: number) => ({
+    id: String(n),
+    reference: `ENQ-20261007-REC${n}`,
+    source: "CONTACT_FORM",
+    status: "NEW",
+    name: `Customer ${n}`,
+    phone: "+919876543210",
+    productsRequired: `Registers batch ${n} ${"x".repeat(120)}`,
+    items: [],
+    createdAt: `2026-10-07T10:0${n}:00.000Z`,
+  });
+
+  const viewer = (cwd: string, args: string[] = [], env: Record<string, string> = {}) =>
+    execFileSync(process.execPath, [path.resolve("scripts/list-enquiries.mjs"), ...args], {
+      cwd,
+      env: { PATH: process.env.PATH ?? "", ...env } as unknown as NodeJS.ProcessEnv,
+      encoding: "utf8",
+    });
+
+  it("reads ENQUIRY_DATA_DIR from .env.local, because that is where the README tells the owner to put it", async () => {
+    const dataDir = path.join(root, "volume");
+    await mkdtemp(path.join(root, "x-")); // ensure root exists
+    await import("node:fs/promises").then((fs) => fs.mkdir(dataDir, { recursive: true }));
+    await writeFile(path.join(dataDir, "enquiries.jsonl"), `${JSON.stringify(record(1))}\n`);
+    await writeFile(path.join(root, ".env.local"), `ENQUIRY_DATA_DIR=${dataDir}\n`);
+    const out = viewer(root);
+    expect(out).toContain("ENQ-20261007-REC1");
+    expect(out).not.toContain("No enquiries yet");
+  });
+
+  it("lets a variable already set in the shell win over the .env files", async () => {
+    const fs = await import("node:fs/promises");
+    const fromEnvFile = path.join(root, "from-file");
+    const fromShell = path.join(root, "from-shell");
+    await fs.mkdir(fromEnvFile, { recursive: true });
+    await fs.mkdir(fromShell, { recursive: true });
+    await writeFile(path.join(fromEnvFile, "enquiries.jsonl"), `${JSON.stringify(record(1))}\n`);
+    await writeFile(path.join(fromShell, "enquiries.jsonl"), `${JSON.stringify(record(2))}\n`);
+    await writeFile(path.join(root, ".env.local"), `ENQUIRY_DATA_DIR=${fromEnvFile}\n`);
+    const out = viewer(root, [], { ENQUIRY_DATA_DIR: fromShell });
+    expect(out).toContain("REC2");
+    expect(out).not.toContain("REC1");
+  });
+
+  it("says where it looked, and how to point it elsewhere, when there is nothing to show", () => {
+    const out = viewer(root);
+    expect(out).toMatch(/No enquiries yet/);
+    expect(out).toMatch(/ENQUIRY_DATA_DIR/);
+  });
+
+  it("reads only the newest part of a huge store instead of crashing, and says so", async () => {
+    const fs = await import("node:fs/promises");
+    await fs.mkdir(path.join(root, ".data"), { recursive: true });
+    const lines = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => JSON.stringify(record(n))).join("\n");
+    await writeFile(path.join(root, ".data", "enquiries.jsonl"), `${lines}\n`);
+    const out = viewer(root, ["--max-bytes=900"]);
+    expect(out).toContain("REC8"); // newest is always there
+    expect(out).not.toContain("REC1"); // oldest is outside the window
+    expect(out).toMatch(/newest/i);
+  });
+
+  it("FileEnquiryRepository.list() does the same: bounded read, newest first, no throw on the cut line", async () => {
+    const repo = new FileEnquiryRepository(path.join(root, "repo"), { maxReadBytes: 900 });
+    for (let n = 1; n <= 8; n++) await repo.create({ source: "CONTACT_FORM", name: `Customer ${n}`, phone: "+919876543210", productsRequired: `Batch ${n} ${"x".repeat(120)}`, items: [] });
+    const names = (await repo.list()).map((e) => e.name);
+    expect(names[0]).toBe("Customer 8");
+    expect(names).not.toContain("Customer 1");
+    expect(names.length).toBeGreaterThan(0);
+    expect(names.length).toBeLessThan(8);
+  });
+});

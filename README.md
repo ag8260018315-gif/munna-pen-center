@@ -10,7 +10,7 @@ It is built as **Version 1 of a B2B sales platform**: a fast, accessible, SEO-re
 
 ## Quick start
 
-Requires **Node.js 20.9+** (22 recommended).
+Requires **Node.js 22.12+** (the version in `.nvmrc`; the test and database tools need it, not only Next.js).
 
 ```bash
 npm install
@@ -58,9 +58,11 @@ No database connection, no admin sign-in, no AI agent, no WhatsApp Business API,
 ## Deploying
 
 1. Set **`NEXT_PUBLIC_SITE_URL`** to your real domain **at build time** (e.g. `https://www.yourdomain.in`). It feeds canonical URLs, the sitemap and social tags; `npm run build` warns if it is missing.
-2. `npm run build && npm start` on a Node 20.9+ host with a persistent disk (or after connecting a database).
+2. `npm run build && npm start` on a Node.js 22.12+ host with a persistent disk (or after connecting a database).
 3. Run `npm run smoke -- https://your-domain` against the live site.
 4. Add the domain to **Google Search Console**, submit `/sitemap.xml`, and create/claim the **Google Business Profile** for Munna Pen Center in Dhanbad — that, more than markup, drives “wholesale stationery Dhanbad” local search.
+
+**Abuse protection:** the forms have a honeypot and a 128 KB request cap, but no per-visitor rate limit — that belongs in front of the app. Add one at your reverse proxy or host (for example nginx `limit_req` on `POST`, or your CDN's rate-limit rule) before launch. The owner's `npm run enquiries` reads only the newest 32 MB of the store, so it keeps working even if someone floods it.
 
 Security headers (HSTS in production, `nosniff`, frame denial, referrer and permissions policies) are set in `next.config.ts`. A strict Content-Security-Policy is a good Phase-2 hardening step (it needs per-request nonces).
 
@@ -128,4 +130,4 @@ docs/                 Architecture, AI sales agent, launch checklist
 
 ## Verified before hand-off
 
-`npm run check` (typecheck, ESLint, 80 unit tests) · production build · `npm run smoke` (78 routes) · 33-step browser run through search, enquiry list, validation errors, submissions, persistence, honeypot and the mobile bar · axe-core WCAG 2.2 AA on 10 pages × 2 viewports.
+`npm run check` (typecheck, ESLint, 177 unit tests) · production build · `npm run smoke` (78 routes) · 33-step browser run through search, enquiry list, validation errors, submissions, persistence, honeypot and the mobile bar · axe-core WCAG 2.2 AA on 10 pages × 2 viewports.

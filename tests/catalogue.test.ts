@@ -52,7 +52,20 @@ describe("StaticCatalogueRepository", () => {
   it("searches by name, tag and category, case-insensitively", async () => {
     expect((await repo.searchProducts({ query: "BALL PEN" })).items[0]?.slug).toBe("ball-pens");
     expect((await repo.searchProducts({ query: "xerox" })).items.map((p) => p.slug)).toContain("copier-paper");
-    expect((await repo.searchProducts({ query: "calculators" })).items.every((p) => p.category.slug === "calculators")).toBe(true);
+    const calculators = await repo.searchProducts({ query: "calculators" });
+    // Non-empty FIRST: `[].every(...)` is true, so an empty result must never be able to pass this test.
+    expect(calculators.total).toBe(products.filter((p) => p.categoryId === "calculators").length);
+    expect(calculators.items.length).toBeGreaterThan(0);
+    expect(calculators.items.every((p) => p.category.slug === "calculators")).toBe(true);
+  });
+
+  it("every category filters to exactly its own products (a broken filter must not pass quietly)", async () => {
+    for (const category of categories) {
+      const result = await repo.searchProducts({ categorySlug: category.slug, pageSize: 60 });
+      const expected = products.filter((p) => p.categoryId === category.id).map((p) => p.slug).sort();
+      expect(result.items.map((p) => p.slug).sort(), category.slug).toEqual(expected);
+      expect(expected.length, category.slug).toBeGreaterThan(0);
+    }
   });
 
   it("requires every search word to match", async () => {
@@ -61,6 +74,8 @@ describe("StaticCatalogueRepository", () => {
 
   it("filters by category and paginates", async () => {
     const pens = await repo.searchProducts({ categorySlug: "pens" });
+    expect(pens.total).toBe(products.filter((p) => p.categoryId === "pens").length);
+    expect(pens.items.length).toBeGreaterThan(0);
     expect(pens.items.every((p) => p.category.slug === "pens")).toBe(true);
 
     const all = await repo.searchProducts({});
@@ -76,6 +91,7 @@ describe("StaticCatalogueRepository", () => {
     expect(product?.category.slug).toBe("pens");
     expect(await repo.getProductBySlug("does-not-exist")).toBeNull();
     const related = await repo.listRelatedProducts(product!);
+    expect(related.length).toBeGreaterThan(0);
     expect(related.length).toBeGreaterThan(0);
     expect(related.every((p) => p.category.id === product!.category.id && p.id !== product!.id)).toBe(true);
   });

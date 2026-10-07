@@ -2,9 +2,9 @@
   "name": "munna-pen-center",
   "version": "1.0.0",
   "private": true,
-  "description": "Munna Pen Center \u2014 wholesale stationery & office supplies, Dhanbad, Jharkhand. B2B website, built to grow into quotations, invoicing and an AI-assisted sales agent.",
+  "description": "Munna Pen Center — wholesale stationery & office supplies, Dhanbad, Jharkhand. B2B website, built to grow into quotations, invoicing and an AI-assisted sales agent.",
   "engines": {
-    "node": ">=20.9.0"
+    "node": ">=22.12.0"
   },
   "scripts": {
     "dev": "next dev",

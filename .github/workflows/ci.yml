@@ -45,6 +45,12 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: No server-only secrets in the browser bundle
+        run: |
+          if grep -rE "AI_API_KEY|DATABASE_URL|WHATSAPP_API_TOKEN|WHATSAPP_WEBHOOK_VERIFY_TOKEN|AUTH_SECRET|GST_API_(KEY|SECRET)|ENQUIRY_DATA_DIR" .next/static; then
+            echo "A server-only variable name reached the client bundle" >&2; exit 1
+          fi
+
       - name: Smoke test the production server
         run: |
           ENQUIRY_DATA_DIR="$RUNNER_TEMP/enquiries" npm start -- -p 3000 &

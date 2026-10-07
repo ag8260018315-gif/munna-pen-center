@@ -75,3 +75,12 @@ describe("GST invoices", () => {
     expect(sequence).toMatch(/@@unique\(\[scope, financialYear\]\)/);
   });
 });
+
+describe("AI work stays attributable", () => {
+  it("every document the agent could draft or send records who created it", () => {
+    for (const name of ["Quotation", "Order", "Invoice", "FollowUp"]) {
+      expect(model(name), name).toMatch(/\n\s*createdBy\s+ActorType/);
+    }
+    expect(model("ApprovalRequest")).toMatch(/\n\s*requestedBy\s+ActorType/);
+  });
+});

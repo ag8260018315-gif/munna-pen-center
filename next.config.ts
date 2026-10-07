@@ -1,14 +1,14 @@
 import type { NextConfig } from "next";
+import { describeSiteUrlProblem } from "./lib/site-url-check";
 
 const isProd = process.env.NODE_ENV === "production";
 
-// NEXT_PUBLIC_* values are inlined at BUILD time. Without the real domain, canonical URLs,
-// the sitemap and Open Graph tags would all point at localhost.
-if (isProd && !process.env.NEXT_PUBLIC_SITE_URL && process.env.npm_lifecycle_event === "build") {
-  console.warn(
-    "\n⚠  NEXT_PUBLIC_SITE_URL is not set. Canonical URLs, sitemap.xml and Open Graph tags will use http://localhost:3000.\n" +
-      "   Set it to your public domain (e.g. https://www.yourdomain.in) before building for production.\n",
-  );
+// NEXT_PUBLIC_* values are inlined at BUILD time. Without the real domain, canonical URLs, the sitemap and
+// Open Graph tags would all point at localhost — including when `cp .env.example .env.local` set the
+// localhost default, so that case is flagged too.
+const siteUrlProblem = isProd && process.env.npm_lifecycle_event === "build" ? describeSiteUrlProblem(process.env.NEXT_PUBLIC_SITE_URL) : null;
+if (siteUrlProblem) {
+  console.warn(`\n⚠  ${siteUrlProblem}\n   Set it to your public domain (e.g. https://www.yourdomain.in) before building for production.\n`);
 }
 
 const securityHeaders = [

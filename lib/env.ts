@@ -10,7 +10,7 @@ import { z } from "zod";
  *  • Nothing here is a `NEXT_PUBLIC_*` variable. Anything prefixed NEXT_PUBLIC_ is public.
  *  • Every secret is optional in V1 because nothing consumes it yet. Mark the ones a
  *    feature needs as required when you build that feature.
- *  • Keep this schema and `.env.example` in sync (tests/env-example.test.ts checks it).
+ *  • Keep this schema and `.env.example` in sync (tests/env.test.ts checks it).
  */
 
 /** Treat `KEY=` (empty) the same as unset. */

@@ -26,7 +26,13 @@ async function get(path) {
   return { res, body: await res.text() };
 }
 
-async function checkPage(path, { status = 200, html = true } = {}) {
+const PRODUCT_LINK = /href="\/products\/[a-z0-9-]+"/;
+
+/**
+ * `expect`: regexes the page body must match. A page that merely returns 200 can still be empty — a broken
+ * category filter once produced ten category pages with no products in them and every check stayed green.
+ */
+async function checkPage(path, { status = 200, html = true, expect = [] } = {}) {
   checked++;
   let result;
   try {
@@ -38,6 +44,9 @@ async function checkPage(path, { status = 200, html = true } = {}) {
   if (res.status !== status) return fail(path, `expected HTTP ${status}, got ${res.status}`);
   if (!html) return;
 
+  for (const pattern of expect) {
+    if (!pattern.test(body)) fail(path, `expected content missing: ${pattern}`);
+  }
   if (status === 200) {
     const decode = (text) => text.replace(/&amp;/g, "&").replace(/&#x27;|&#39;/g, "'").replace(/&quot;/g, '"');
     const title = /<title>([^<]*)<\/title>/.exec(body)?.[1]?.trim();
@@ -68,19 +77,22 @@ const sitemap = await get("/sitemap.xml").catch((error) => {
 const sitemapPaths = [...sitemap.body.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => new URL(m[1]).pathname);
 if (sitemapPaths.length < 10) fail("/sitemap.xml", `only ${sitemapPaths.length} URLs listed`);
 
-for (const path of sitemapPaths) await checkPage(path);
+for (const path of sitemapPaths) {
+  // Category landing pages and product-list pages must actually list products.
+  await checkPage(path, { expect: path.startsWith("/categories/") ? [PRODUCT_LINK] : [] });
+}
 
 // Request-time (query-driven) variants.
-for (const path of [
-  "/products?q=pen",
-  "/products?category=pens",
-  "/products?q=zzzzqqq", // empty state
-  "/products?page=999", // out-of-range page clamps instead of erroring
-  "/request-quote?product=ball-pens",
-  "/request-quote?product=not-a-real-product",
-  "/request-quote?need=A4%20paper",
+for (const [path, expect] of [
+  ["/products?q=pen", [PRODUCT_LINK]],
+  ["/products?category=pens", [PRODUCT_LINK]],
+  ["/products?q=zzzzqqq", [/No products match/]], // empty state
+  ["/products?page=999", [PRODUCT_LINK]], // out-of-range page clamps instead of erroring
+  ["/request-quote?product=ball-pens", []],
+  ["/request-quote?product=not-a-real-product", []],
+  ["/request-quote?need=A4%20paper", [/A4 paper/]],
 ]) {
-  await checkPage(path);
+  await checkPage(path, { expect });
 }
 
 for (const path of ["/robots.txt", "/manifest.webmanifest", "/opengraph-image", "/icon.svg"]) await checkPage(path, { html: false });

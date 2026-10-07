@@ -88,7 +88,7 @@ Design notes:
 - **A draft can be unpriced.** Quotation line prices, GST rate and totals are nullable — `NULL` means “not priced yet”, never `0`. Order and invoice lines are not nullable: those values are final.
 - **GST invoices.** `Invoice.number` is `NULL` until the invoice is *issued* and is then allocated from `NumberSequence` (one row per series per financial year, e.g. `INV` / `2026-27`) inside the same transaction, so drafts never burn numbers and a rollback leaves no gap. Buyer and supplier name, address and GSTIN are **snapshotted onto the invoice** at issue time, so later edits to a Customer cannot change an invoice that has already been sent.
 - **Rules Prisma cannot express** are listed at the top of `schema.prisma` for the first migration: exactly one approval target set (CHECK), one pending approval per target (partial unique index), no quotation leaving DRAFT with an unpriced line.
-- Every document records **who created it** (`ActorType`: `ADMIN`, `AI_AGENT`, `CUSTOMER`, `SYSTEM`) so AI work is always attributable.
+- Quotations, orders, invoices, follow-ups and approval requests record **who created them** (`ActorType`: `ADMIN`, `AI_AGENT`, `CUSTOMER`, `SYSTEM`) so AI work is always attributable; enquiries and leads record the channel they came from (`source`), and payments record the staff member who entered them.
 
 ### Connecting the database (Phase 2 checklist)
 
