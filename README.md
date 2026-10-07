@@ -31,12 +31,12 @@ npm run dev                     # http://localhost:3000
 
 ## What Version 1 includes
 
-- **Pages:** Home · Products (search, category filter, pagination) · Product detail · 10 category pages · Bulk Orders · Request Quote · About · Contact — all with clean URLs.
+- **Pages:** Home · Products (search, category filter, pagination) · Product detail · 23 category pages · Bulk Orders · Request Quote · About · Contact — all with clean URLs.
 - **Header** with *Request Bulk Quote* and *WhatsApp Us*, and a **sticky Call / WhatsApp / Get Quote bar on mobile**.
-- **Catalogue** — 10 categories and a placeholder set of generic product *types* (see below). Cards show image, name, category, description, pack/unit info and **“Get Wholesale Price” / “Request Quote”** — never a price.
+- **Catalogue** — the 23 categories and 22 brands the owner listed, and the five products identified so far (glue guns, glue sticks, cello tape, adhesive tape, calculators); more are added by the owner later (see below). Cards show image, name, category, description and **“Get Wholesale Price” / “Request Quote”** — never a price. A category with nothing listed yet says so, offers a quote request, and is kept out of search results.
 - **Enquiry list** — visitors tap **Add to Enquiry** on products; the list (with optional quantities) becomes the product lines of the quote request.
 - **Forms** — bulk enquiry, quote request, contact. Server-side validation, inline errors, loading / success / error states, spam honeypot, a reference number on success, and a **pre-filled WhatsApp fallback** so a lead is never lost.
-- **WhatsApp** — click-to-chat links in the correct international format (`https://wa.me/917979025166`) with the pre-filled messages from the brief.
+- **WhatsApp** — click-to-chat links in the correct international format (`https://wa.me/917979025165`) with the pre-filled messages from the brief.
 - **SEO** — per-page titles & descriptions, canonical URLs, Open Graph / Twitter tags + generated share image, JSON-LD (Organization, WebSite, Breadcrumbs, FAQ), `sitemap.xml`, `robots.txt`, semantic headings, alt text, search-result pages kept out of the index.
 - **Performance & accessibility** — static pages where possible, self-hosted fonts, ~9 KB CSS, no UI library, JS limited to what interactivity needs (zod is server-only). Audited with axe-core against WCAG 2.2 AA: **0 violations** on every page at desktop and mobile widths.
 - **Architecture for what comes next** — repository interfaces, a Prisma schema for every business entity, an admin shell that is closed in production, and an AI-agent action policy that makes owner approval a hard rule. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/AI_SALES_AGENT.md`](docs/AI_SALES_AGENT.md).
@@ -53,10 +53,11 @@ No database connection, no admin sign-in, no AI agent, no WhatsApp Business API,
 2. V1 stores enquiries as one JSON object per line in **`.data/enquiries.jsonl`** (override with `ENQUIRY_DATA_DIR`). Read them with `npm run enquiries`.
 3. If saving fails — or the store does not answer within 8 seconds — the visitor is **never told it worked**: they see an error and a one-tap **WhatsApp** button with their enquiry already written out.
 
-⚠ **Hosting matters.** The file store needs a server with a **persistent disk** (a VPS, Docker volume, or your own machine). On **serverless hosts such as Vercel the filesystem is read-only/ephemeral**, so every submission would fall back to WhatsApp. Either host V1 on a persistent server, or do Phase 2 (connect a database) first — that is exactly what the repository layer is for.
+⚠ **Hosting matters — and the plan is Vercel + Supabase.** The file store needs a server with a **persistent disk**. **Vercel's filesystem is read-only/ephemeral**, so on Vercel *every submission would fall back to WhatsApp*. Before launching on Vercel, do Phase 2: connect Supabase PostgreSQL behind the repository interfaces (`PrismaEnquiryRepository`) — that is exactly what the repository layer is for. Until then use a host with a persistent disk, or accept WhatsApp-only enquiries.
 
 ## Deploying
 
+0. On Vercel set the environment variables from `.env.example` for Production (at least `NEXT_PUBLIC_SITE_URL`, `BUSINESS_GSTIN`; later `DATABASE_URL`, `DIRECT_URL`, `SUPABASE_*`, `AUTH_SECRET`). Only `NEXT_PUBLIC_SITE_URL` is public; everything else stays server-side.
 1. Set **`NEXT_PUBLIC_SITE_URL`** to your real domain **at build time** (e.g. `https://www.yourdomain.in`). It feeds canonical URLs, the sitemap and social tags; `npm run build` warns if it is missing.
 2. `npm run build && npm start` on a Node.js 22.12+ host with a persistent disk (or after connecting a database).
 3. Run `npm run smoke -- https://your-domain` against the live site.
@@ -81,7 +82,9 @@ Security headers (HSTS in production, `nosniff`, frame denial, referrer and perm
 | Colours, fonts, spacing | `app/globals.css` (`@theme`) |
 | Logo | `components/brand/logo.tsx`, `public/brand/*.svg`, `app/icon.svg` |
 
-**About the product list:** `data/products.ts` ships *generic product types* (“Ball Pens”, “Registers & Ledgers”…) with **no brands, SKUs, prices, stock or pack sizes** — the cards say “Pack sizes on request”. It is a starting point for the owner to confirm, edit or replace, not an inventory.
+**About the product list:** `data/products.ts` holds only the **five products the owner identified**; `data/categories.ts` the 23 categories and `data/brands.ts` the 22 brands (a separate list — brands are not products, nothing is attached to them). There are **no SKUs, prices, GST rates, HSN codes, stock or pack sizes** anywhere in the repo. The database schema has a place for all of them (`Product`: SKU, brand, category, unit, pack size, purchase / wholesale / retail price, GST rate, HSN, stock, minimum order quantity, image, active status) so the owner can add real products later from the admin. “Cello Tape” and “Adhesive Tape” were on the brand list but are product types, so they are not shown as brands until the owner confirms.
+
+**GSTIN:** it is deliberately *not* in the code. Set the server-only `BUSINESS_GSTIN` environment variable (Vercel → Project → Settings → Environment Variables); the footer and About page show it when set.
 
 **Logo:** a fountain-pen nib resting on an ink line, on an indigo tile. Outlined SVG lockups (no font dependency, safe for print) are in `public/brand/` (`logo.svg`, `logo-on-dark.svg`, `logo-mark.svg`).
 
@@ -130,4 +133,4 @@ docs/                 Architecture, AI sales agent, launch checklist
 
 ## Verified before hand-off
 
-`npm run check` (typecheck, ESLint, 231 unit tests) · production build · `npm run smoke` (78 routes) · 33-step browser run through search, enquiry list, validation errors, submissions, persistence, honeypot and the mobile bar · axe-core WCAG 2.2 AA on 10 pages × 2 viewports.
+`npm run check` (typecheck, ESLint, 244 unit tests) · production build · `npm run smoke` (41 routes) · 33-step browser run through search, enquiry list, validation errors, submissions, persistence, honeypot and the mobile bar · axe-core WCAG 2.2 AA on 10 pages × 2 viewports.

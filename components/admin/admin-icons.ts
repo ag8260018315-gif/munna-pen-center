@@ -2,6 +2,7 @@ import {
   Bell,
   BookUser,
   Bot,
+  BadgeCheck,
   Boxes,
   ClipboardList,
   CreditCard,
@@ -25,6 +26,7 @@ import type { AdminIcon } from "@/lib/admin/sections";
 export const ADMIN_ICONS: Record<AdminIcon, LucideIcon> = {
   dashboard: LayoutDashboard,
   products: Package,
+  brands: BadgeCheck,
   categories: Tags,
   inventory: Boxes,
   customers: BookUser,

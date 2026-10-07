@@ -49,6 +49,7 @@ This document explains how the site is put together and — more importantly —
 ```mermaid
 erDiagram
   Category ||--o{ Product : contains
+  Brand ||--o{ Product : "brand of"
   Category ||--o{ Category : "parent of"
   Lead ||--o{ Enquiry : raises
   Lead }o--o| Customer : "converts to"
@@ -79,7 +80,10 @@ erDiagram
 
 Design notes:
 
-- **No price on `Product`.** Wholesale prices are quoted per customer and quantity, so prices exist only on `QuotationItem` / `OrderItem` / `InvoiceItem` (all `Decimal(12,2)`, INR). The website cannot show a price because the data model has nowhere to keep one.
+- **Prices on `Product` are internal.** `Product` carries `purchasePrice`, `wholesalePrice` and `retailPrice` (all nullable `Decimal(12,2)`) so the owner can keep a price list in the admin — but the **website never shows them**: the public `Product` type has no price field, the public catalogue repository selects only public columns, and a test guards the type. Wholesale prices are still quoted per customer and quantity (`QuotationItem` / `OrderItem` / `InvoiceItem`), and the owner approves every quotation.
+- **Brands are their own table** (`Brand`), not products; a product may have no brand. `isListedPublicly` defaults to false, so nothing appears on the website until the owner confirms it. Brand and Category deletes are `Restrict`ed while products use them.
+- **Nothing is pre-filled.** SKU, unit, pack size, prices, HSN, GST rate, stock and minimum order quantity are all nullable with no default: NULL means "not entered", never 0. A new product starts as `DRAFT`; `INACTIVE` hides it without deleting it. Add real products from the admin — the repo contains no invented inventory.
+- **Supabase.** Tables are reached only from the server (Prisma via `DATABASE_URL`, pooled; migrations via `DIRECT_URL`). Row-level security is switched on for every table with no policies, so the Supabase public API can never read prices; the browser gets no Supabase key. Product images go to Supabase Storage (`SUPABASE_STORAGE_BUCKET`, uploaded server-side with the service-role key), with Cloudinary as a later option behind the same `imageUrl` / `imagePath` fields.
 - **No stock figures.** Add an `InventoryItem` model when the business has a stock process. Nothing is invented meanwhile.
 - **Lead → Customer.** A *Lead* is anyone who enquired. A *Customer* exists once the business quotes or sells to them; the lead is linked to it on conversion.
 - **GST fields are present but empty by default:** `Product.hsnCode`, `Product.gstRatePercent`, per-line `gstRatePercent`, `Invoice.cgstTotal / sgstTotal / igstTotal`, `buyerGstin`, `placeOfSupply`, `irn`. They are filled from the business’s real tax data — never guessed.

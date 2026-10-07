@@ -6,6 +6,7 @@ describe("admin section registry", () => {
     expect(ADMIN_SECTIONS.map((s) => s.label)).toEqual([
       "Dashboard",
       "Products",
+      "Brands",
       "Categories",
       "Inventory",
       "Customers",

@@ -6,7 +6,7 @@
  * (or keep them as the app-facing shape and map in the repository layer).
  */
 
-export type ProductStatus = "ACTIVE" | "DRAFT" | "ARCHIVED";
+export type ProductStatus = "ACTIVE" | "DRAFT" | "INACTIVE";
 
 export interface Category {
   id: string;
@@ -21,12 +21,23 @@ export interface Category {
   sortOrder: number;
 }
 
+/** A brand the business can supply. A brand is NOT a product: nothing is priced or stocked at brand level. */
+export interface Brand {
+  id: string;
+  slug: string;
+  name: string;
+  /** False = kept in the data but not shown on the public site (e.g. awaiting the owner's confirmation). */
+  listedPublicly: boolean;
+}
+
 export interface Product {
   id: string;
   slug: string;
   name: string;
   shortDescription: string;
   categoryId: string;
+  /** Brand, once the owner has linked one. Null/absent = no brand stated. */
+  brandId?: string;
   /** Public path or URL. When absent the UI renders a neutral category placeholder. */
   imageUrl?: string;
   imageAlt?: string;
@@ -81,7 +92,7 @@ export interface Enquiry {
   status: EnquiryStatus;
   name: string;
   organization?: string;
-  /** E.164, e.g. +917979025166 */
+  /** E.164, e.g. +917979025165 */
   phone: string;
   email?: string;
   city?: string;

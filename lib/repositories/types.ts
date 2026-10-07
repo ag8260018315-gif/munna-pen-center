@@ -1,4 +1,5 @@
 import type {
+  Brand,
   CataloguePage,
   CatalogueQuery,
   Category,
@@ -17,6 +18,8 @@ import type {
 
 export interface CatalogueRepository {
   listCategories(): Promise<Category[]>;
+  /** Brands to show publicly (those the owner has confirmed). */
+  listBrands(): Promise<Brand[]>;
   getCategoryBySlug(slug: string): Promise<Category | null>;
   searchProducts(query?: CatalogueQuery): Promise<CataloguePage>;
   getProductBySlug(slug: string): Promise<ProductWithCategory | null>;

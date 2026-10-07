@@ -9,6 +9,7 @@
 export type AdminIcon =
   | "dashboard"
   | "products"
+  | "brands"
   | "categories"
   | "inventory"
   | "customers"
@@ -49,10 +50,19 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
     slug: "products",
     label: "Products",
     icon: "products",
-    summary: "Add, edit and publish catalogue products with images, pack information and HSN / GST details.",
+    summary: "Add, edit, deactivate and publish products: SKU, brand, category, unit, pack size, purchase / wholesale / retail price, GST rate, HSN code, stock, minimum order quantity and image.",
     entities: ["Product"],
     phase: 2,
     requires: ["Database", "Admin sign-in", "Image storage"],
+  },
+  {
+    slug: "brands",
+    label: "Brands",
+    icon: "brands",
+    summary: "Add and edit the brands you supply (kept separate from products), and choose which are shown on the website.",
+    entities: ["Brand"],
+    phase: 2,
+    requires: ["Database", "Admin sign-in"],
   },
   {
     slug: "categories",

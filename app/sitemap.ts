@@ -14,7 +14,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: absoluteUrl("/request-quote"), changeFrequency: "monthly", priority: 0.8 },
     { url: absoluteUrl("/about"), changeFrequency: "monthly", priority: 0.6 },
     { url: absoluteUrl("/contact"), changeFrequency: "monthly", priority: 0.7 },
-    ...categories.map((category) => ({ url: absoluteUrl(`/categories/${category.slug}`), changeFrequency: "weekly" as const, priority: 0.8 })),
+    // Categories with nothing listed yet are noindex, so they stay out of the sitemap too.
+    ...categories.filter((category) => products.some((product) => product.category.id === category.id)).map((category) => ({ url: absoluteUrl(`/categories/${category.slug}`), changeFrequency: "weekly" as const, priority: 0.8 })),
     ...products.map((product) => ({ url: absoluteUrl(`/products/${product.slug}`), changeFrequency: "monthly" as const, priority: 0.6 })),
   ];
 }

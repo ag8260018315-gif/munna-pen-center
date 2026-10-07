@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { brands } from "@/data/brands";
 import { categories } from "@/data/categories";
 import { products } from "@/data/products";
 import { StaticCatalogueRepository } from "@/lib/repositories/static-catalogue";
@@ -6,19 +7,37 @@ import { StaticCatalogueRepository } from "@/lib/repositories/static-catalogue";
 const repo = new StaticCatalogueRepository();
 
 describe("catalogue data integrity", () => {
-  it("has the ten required categories", () => {
+  it("has exactly the categories the owner listed", () => {
     expect(categories.map((c) => c.name)).toEqual([
       "Pens",
       "Pencils",
-      "School Supplies",
-      "Office Supplies",
-      "Engineering Supplies",
+      "Notebooks",
+      "Registers",
+      "Files",
+      "Folders",
       "Calculators",
-      "Writing & Drawing Supplies",
-      "Files & Folders",
-      "Paper & Registers",
+      "School Stationery",
+      "Office Stationery",
+      "Engineering Stationery",
+      "Erasers",
+      "Sharpeners",
+      "Markers",
+      "Highlighters",
+      "Drawing Supplies",
+      "Adhesive Tape",
+      "Cello Tape",
+      "Glue",
+      "Glue Guns",
+      "Glue Sticks",
+      "Paper Products",
+      "Writing Instruments",
       "Other Stationery",
     ]);
+    expect(new Set(categories.map((c) => c.slug)).size).toBe(categories.length);
+  });
+
+  it("lists only the five products the owner identified — no invented inventory", () => {
+    expect(products.map((p) => p.name)).toEqual(["Glue Guns", "Glue Sticks & Glue Gun Sticks", "Cello Tape", "Adhesive Tape", "Calculators"]);
   });
 
   it("has unique slugs and every product points at a real category", () => {
@@ -28,19 +47,37 @@ describe("catalogue data integrity", () => {
     for (const product of products) expect(categoryIds.has(product.categoryId)).toBe(true);
   });
 
-  it("every category has at least one product", () => {
-    for (const category of categories) {
-      expect(products.some((p) => p.categoryId === category.id)).toBe(true);
-    }
-  });
-
-  it("never carries prices, stock figures or brand claims", () => {
+  it("never carries prices, stock figures, SKUs or brand claims on the public product", () => {
     for (const product of products) {
       expect(Object.keys(product)).not.toEqual(expect.arrayContaining(["price"]));
+      for (const forbidden of ["sku", "purchasePrice", "wholesalePrice", "retailPrice", "stockQuantity", "hsnCode", "gstRatePercent", "brandId"]) {
+        expect(product, forbidden).not.toHaveProperty(forbidden);
+      }
       expect(JSON.stringify(product)).not.toMatch(/₹|rs\.?\s?\d|in stock|\bmrp\b/i);
     }
   });
+});
 
+describe("brands", () => {
+  const owner = [
+    "DOMS", "Natraj", "Pidilite", "Linc", "Flair", "Cello", "Faber-Castell", "Luxor", "Kangaro", "STP", "Montex",
+    "Artline", "Casio", "Shanti File", "Supra", "Goldex", "Reynolds", "Pierre Cardin", "Cello Tape", "Polo Tape", "Adhesive Tape", "Kores",
+  ];
+
+  it("keeps all 22 brands the owner listed, in their own list, separate from products", () => {
+    expect(brands.map((b) => b.name)).toEqual(owner);
+    expect(new Set(brands.map((b) => b.slug)).size).toBe(brands.length);
+    for (const brand of brands) expect(Object.keys(brand).sort()).toEqual(["id", "listedPublicly", "name", "slug"]);
+  });
+
+  it("shows publicly every brand except the two that are really product types", async () => {
+    const shown = (await repo.listBrands()).map((b) => b.name);
+    expect(shown).toHaveLength(20);
+    expect(shown).not.toContain("Cello Tape");
+    expect(shown).not.toContain("Adhesive Tape");
+    expect(shown).toContain("DOMS");
+    expect(shown).toContain("Polo Tape");
+  });
 });
 
 describe("StaticCatalogueRepository", () => {
@@ -50,8 +87,8 @@ describe("StaticCatalogueRepository", () => {
   });
 
   it("searches by name, tag and category, case-insensitively", async () => {
-    expect((await repo.searchProducts({ query: "BALL PEN" })).items[0]?.slug).toBe("ball-pens");
-    expect((await repo.searchProducts({ query: "xerox" })).items.map((p) => p.slug)).toContain("copier-paper");
+    expect((await repo.searchProducts({ query: "GLUE GUN" })).items[0]?.slug).toBe("glue-guns");
+    expect((await repo.searchProducts({ query: "sellotape" })).items.map((p) => p.slug)).toContain("cello-tape");
     const calculators = await repo.searchProducts({ query: "calculators" });
     // Non-empty FIRST: `[].every(...)` is true, so an empty result must never be able to pass this test.
     expect(calculators.total).toBe(products.filter((p) => p.categoryId === "calculators").length);
@@ -64,8 +101,11 @@ describe("StaticCatalogueRepository", () => {
       const result = await repo.searchProducts({ categorySlug: category.slug, pageSize: 60 });
       const expected = products.filter((p) => p.categoryId === category.id).map((p) => p.slug).sort();
       expect(result.items.map((p) => p.slug).sort(), category.slug).toEqual(expected);
-      expect(expected.length, category.slug).toBeGreaterThan(0);
     }
+    // ...and the filter is not vacuous: the categories that do have a product return it.
+    const withProducts = categories.filter((c) => products.some((p) => p.categoryId === c.id));
+    expect(withProducts.map((c) => c.slug)).toEqual(["calculators", "adhesive-tape", "cello-tape", "glue-guns", "glue-sticks"].sort((a, b) => categories.findIndex((c) => c.slug === a) - categories.findIndex((c) => c.slug === b)));
+    for (const category of withProducts) expect((await repo.searchProducts({ categorySlug: category.slug })).total, category.slug).toBeGreaterThan(0);
   });
 
   it("requires every search word to match", async () => {
@@ -73,27 +113,25 @@ describe("StaticCatalogueRepository", () => {
   });
 
   it("filters by category and paginates", async () => {
-    const pens = await repo.searchProducts({ categorySlug: "pens" });
-    expect(pens.total).toBe(products.filter((p) => p.categoryId === "pens").length);
-    expect(pens.items.length).toBeGreaterThan(0);
-    expect(pens.items.every((p) => p.category.slug === "pens")).toBe(true);
+    const glue = await repo.searchProducts({ categorySlug: "glue-guns" });
+    expect(glue.total).toBe(products.filter((p) => p.categoryId === "glue-guns").length);
+    expect(glue.items.length).toBeGreaterThan(0);
+    expect(glue.items.every((p) => p.category.slug === "glue-guns")).toBe(true);
 
     const all = await repo.searchProducts({});
-    const page1 = await repo.searchProducts({ pageSize: 10, page: 1 });
-    expect(page1.items).toHaveLength(10);
-    expect(page1.totalPages).toBe(Math.ceil(all.total / 10));
-    const last = await repo.searchProducts({ pageSize: 10, page: 999 });
+    expect(all.total).toBe(products.length);
+    const page1 = await repo.searchProducts({ pageSize: 2, page: 1 });
+    expect(page1.items).toHaveLength(2);
+    expect(page1.totalPages).toBe(Math.ceil(all.total / 2));
+    const last = await repo.searchProducts({ pageSize: 2, page: 999 });
     expect(last.page).toBe(last.totalPages);
   });
 
-  it("looks up products and related products by slug", async () => {
-    const product = await repo.getProductBySlug("gel-pens");
-    expect(product?.category.slug).toBe("pens");
+  it("looks up products by slug and tolerates a category with no related products", async () => {
+    const product = await repo.getProductBySlug("calculators");
+    expect(product?.category.slug).toBe("calculators");
     expect(await repo.getProductBySlug("does-not-exist")).toBeNull();
-    const related = await repo.listRelatedProducts(product!);
-    expect(related.length).toBeGreaterThan(0);
-    expect(related.length).toBeGreaterThan(0);
-    expect(related.every((p) => p.category.id === product!.category.id && p.id !== product!.id)).toBe(true);
+    expect(await repo.listRelatedProducts(product!)).toEqual([]); // the only product in its category
   });
 
   it("hides non-active products", async () => {

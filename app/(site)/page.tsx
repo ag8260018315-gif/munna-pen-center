@@ -1,4 +1,5 @@
 import { Audiences } from "@/components/home/audiences";
+import { BrandsSection } from "@/components/home/brands-section";
 import { CategoriesGrid } from "@/components/home/categories-grid";
 import { CtaBand } from "@/components/home/cta-band";
 import { Delivery } from "@/components/home/delivery";
@@ -12,12 +13,14 @@ import { pageMetadata } from "@/lib/seo";
 export const metadata = pageMetadata({ ...pageSeo.home, absoluteTitle: true, path: "/" });
 
 export default async function HomePage() {
-  const categories = await getCatalogue().listCategories();
+  const catalogue = getCatalogue();
+  const [categories, brands] = await Promise.all([catalogue.listCategories(), catalogue.listBrands()]);
   return (
     <>
       <Hero />
       <Audiences />
-      <CategoriesGrid categories={categories} />
+      <CategoriesGrid categories={categories.slice(0, 10)} />
+      <BrandsSection brands={brands} />
       <HowItWorks />
       <Delivery />
       <WhyUs />

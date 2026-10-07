@@ -13,16 +13,33 @@ import { z } from "zod";
  *  • Keep this schema and `.env.example` in sync (tests/env.test.ts checks it).
  */
 
+/** 15 characters: 2-digit state code, 10-character PAN, entity number, "Z", check character. Checks the SHAPE only. */
+const GSTIN_PATTERN = /^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+
 /** Treat `KEY=` (empty) the same as unset. */
 const optionalString = z.preprocess((value) => (value === "" ? undefined : value), z.string().min(1).optional());
 const optionalUrl = z.preprocess((value) => (value === "" ? undefined : value), z.url().optional());
 
+const optionalGstin = z.preprocess(
+  (value) => (typeof value === "string" ? value.trim().toUpperCase() || undefined : value),
+  z.string().regex(GSTIN_PATTERN, "not a valid GSTIN").optional(),
+);
+
 export const serverEnvSchema = z.object({
+  /** The business GSTIN (shown in the footer / About page when set; used on invoices in Phase 4). Never put it in source. */
+  BUSINESS_GSTIN: optionalGstin,
+
   /** Where V1 stores enquiries (JSONL). Needs a persistent disk. */
   ENQUIRY_DATA_DIR: optionalString,
 
-  /** Phase 2 — PostgreSQL connection string. */
+  /** Phase 2 — Supabase PostgreSQL. DATABASE_URL = pooled connection (app runtime on Vercel); DIRECT_URL = direct connection (migrations). */
   DATABASE_URL: optionalUrl,
+  DIRECT_URL: optionalUrl,
+
+  /** Phase 2 — Supabase project API + Storage (product images). The service-role key bypasses row security: server-only, never public. */
+  SUPABASE_URL: optionalUrl,
+  SUPABASE_SERVICE_ROLE_KEY: optionalString,
+  SUPABASE_STORAGE_BUCKET: optionalString,
 
   /** Phase 2 — admin authentication. Generate with `openssl rand -base64 32`. */
   AUTH_SECRET: optionalString,

@@ -6,14 +6,14 @@ The site never invents facts, so anything not supplied is either hidden or shown
 
 - [ ] **Domain name** — set `NEXT_PUBLIC_SITE_URL` (at build time) so canonical URLs, the sitemap and social previews are correct.
 - [ ] **Hosting that keeps enquiries** — a server with a persistent disk, **or** connect the database first (see README → *How enquiries work*). On serverless hosting, form submissions can only fall back to WhatsApp.
-- [ ] **Product list** — review `data/products.ts`. It contains generic product *types* so the catalogue is browsable; remove anything you don’t supply, add what’s missing. Add brands, pack sizes (`packInfo`) and photos only when confirmed.
+- [x] **Categories, brands and first products** — supplied by the owner (23 categories, 22 brands, 5 products). Add real products (with SKU, brand, unit, pack size, prices, GST, HSN, stock, minimum order quantity and photo) from the admin once it exists. Confirm whether **Cello Tape** and **Adhesive Tape** should appear as brands (they are product types, so they are hidden for now).
 - [ ] **Where enquiries are read** — until the admin is built, run `npm run enquiries` on the server (or check `.data/enquiries.jsonl`) **and** keep an eye on WhatsApp. Decide who checks, and how often.
 
-## Business details to add (`lib/config/site.ts`)
+## Business details (`lib/config/site.ts`, `.env`)
 
-- [ ] **GSTIN** — shown in the footer and About page once added. (The site already says “GST Registered”, as you confirmed.)
-- [ ] **Full address & PIN code** — currently only “Dhanbad, Jharkhand, India”.
-- [ ] **Email address** — shown in the footer and Contact page when set.
+- [x] **Phone / WhatsApp** — 79790 25165 (supplied). **Address** — Railway Cinema Road, Purana Bazar, Dhanbad, Jharkhand (supplied). **Email** — supplied.
+- [ ] **GSTIN** — set the server-only `BUSINESS_GSTIN` environment variable (Vercel → Settings → Environment Variables). It is not in the code on purpose. The footer and About page show it once set — if you would rather not show it publicly, leave the variable unset until invoices are built.
+- [ ] **PIN code** — not supplied yet, so it is not shown.
 - [ ] **Business hours** — optional.
 - [ ] **Social profiles** — optional.
 
@@ -34,7 +34,7 @@ The site never invents facts, so anything not supplied is either hidden or shown
 
 - [ ] **Google Business Profile** for Munna Pen Center, Dhanbad — the biggest single lever for “wholesale stationery Dhanbad”.
 - [ ] **Google Search Console** — verify the domain, submit `https://<your-domain>/sitemap.xml`.
-- [ ] **WhatsApp Business app** on 79790 25166 — set a greeting and away message now; the website’s WhatsApp buttons open a chat with this number.
+- [ ] **WhatsApp Business app** on 79790 25165 — set a greeting and away message now; the website’s WhatsApp buttons open a chat with this number.
 - [ ] Product **photographs** — real photos of what you stock beat any placeholder: `public/images/products/` + `imageUrl` / `imageAlt`.
 
 ## Later phases need from you

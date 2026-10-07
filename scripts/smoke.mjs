@@ -82,13 +82,22 @@ for (const path of sitemapPaths) {
   await checkPage(path, { expect: path.startsWith("/categories/") ? [PRODUCT_LINK] : [] });
 }
 
+// Categories with no products listed yet are not in the sitemap (they are noindex), but the pages must still work and
+// say so honestly instead of rendering an empty grid.
+const home = await get("/");
+const linkedCategories = [...new Set([...home.body.matchAll(/href="(\/categories\/[a-z0-9-]+)"/g)].map((m) => m[1]))];
+if (linkedCategories.length < 8) fail("/", `only ${linkedCategories.length} category links on the home page`);
+for (const path of linkedCategories.filter((link) => !sitemapPaths.includes(link))) {
+  await checkPage(path, { expect: [/tell us what you need/i, /noindex/] });
+}
+
 // Request-time (query-driven) variants.
 for (const [path, expect] of [
-  ["/products?q=pen", [PRODUCT_LINK]],
-  ["/products?category=pens", [PRODUCT_LINK]],
+  ["/products?q=tape", [PRODUCT_LINK]],
+  ["/products?category=glue-guns", [PRODUCT_LINK]],
   ["/products?q=zzzzqqq", [/No products match/]], // empty state
   ["/products?page=999", [PRODUCT_LINK]], // out-of-range page clamps instead of erroring
-  ["/request-quote?product=ball-pens", []],
+  ["/request-quote?product=glue-guns", []],
   ["/request-quote?product=not-a-real-product", []],
   ["/request-quote?need=A4%20paper", [/A4 paper/]],
 ]) {

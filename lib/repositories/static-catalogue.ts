@@ -1,6 +1,8 @@
+import { brands as brandData } from "@/data/brands";
 import { categories as categoryData } from "@/data/categories";
 import { products as productData } from "@/data/products";
 import type {
+  Brand,
   CataloguePage,
   CatalogueQuery,
   Category,
@@ -45,9 +47,11 @@ export function scoreProduct(product: ProductWithCategory, tokens: string[]): nu
  */
 export class StaticCatalogueRepository implements CatalogueRepository {
   private readonly categories: Category[];
+  private readonly brands: Brand[];
   private readonly products: ProductWithCategory[];
 
-  constructor(categories: Category[] = categoryData, products: Product[] = productData) {
+  constructor(categories: Category[] = categoryData, products: Product[] = productData, brands: Brand[] = brandData) {
+    this.brands = brands.filter((brand) => brand.listedPublicly);
     this.categories = [...categories].sort((a, b) => a.sortOrder - b.sortOrder);
     const byId = new Map(this.categories.map((category) => [category.id, category]));
     this.products = products
@@ -60,6 +64,10 @@ export class StaticCatalogueRepository implements CatalogueRepository {
 
   async listCategories() {
     return this.categories;
+  }
+
+  async listBrands() {
+    return this.brands;
   }
 
   async getCategoryBySlug(slug: string) {

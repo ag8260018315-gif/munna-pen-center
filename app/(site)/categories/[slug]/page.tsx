@@ -5,9 +5,13 @@ import { CtaBand } from "@/components/home/cta-band";
 import { CategoryIcon } from "@/components/products/category-icon";
 import { ProductGrid } from "@/components/products/product-card";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { ButtonLink, ExternalButtonLink } from "@/components/ui/button";
+import { WhatsAppIcon } from "@/components/icons/whatsapp";
+import { EmptyState } from "@/components/ui/state-panels";
 import { Container } from "@/components/ui/section";
 import { getCatalogue } from "@/lib/repositories";
 import { pageMetadata } from "@/lib/seo";
+import { buildWhatsAppUrl } from "@/lib/whatsapp";
 
 type Params = Promise<{ slug: string }>;
 
@@ -19,7 +23,9 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const category = await getCatalogue().getCategoryBySlug((await params).slug);
   if (!category) return {};
-  return pageMetadata({ title: category.seoTitle, description: category.seoDescription, path: `/categories/${category.slug}` });
+  // A category with nothing listed yet is a thin page: keep it out of search results until products are added.
+  const { total } = await getCatalogue().searchProducts({ categorySlug: category.slug, pageSize: 1 });
+  return pageMetadata({ title: category.seoTitle, description: category.seoDescription, path: `/categories/${category.slug}`, noIndex: total === 0 });
 }
 
 export default async function CategoryPage({ params }: { params: Params }) {
@@ -55,7 +61,27 @@ export default async function CategoryPage({ params }: { params: Params }) {
 
       <Container className="py-12 sm:py-16">
         <p className="mb-8 text-sm text-muted">Listings are indicative — availability, brands, pack sizes and prices are confirmed on enquiry.</p>
-        <ProductGrid products={items} headingLevel={2} />
+        {items.length > 0 ? (
+          <ProductGrid products={items} headingLevel={2} />
+        ) : (
+          <EmptyState
+            title={`${category.name}: tell us what you need`}
+            actions={
+              <>
+                <ButtonLink href={`/request-quote?need=${encodeURIComponent(category.name)}`} size="lg">
+                  Request a quote
+                </ButtonLink>
+                <ExternalButtonLink href={buildWhatsAppUrl(`Hello Munna Pen Center, I am looking for: ${category.name}.`)} variant="whatsapp" size="lg">
+                  <WhatsAppIcon className="size-5" />
+                  Ask on WhatsApp
+                </ExternalButtonLink>
+              </>
+            }
+          >
+            We have not listed individual products in this category online yet. Tell us the type, brand and quantity you need and we will confirm
+            availability and send a wholesale quotation.
+          </EmptyState>
+        )}
 
         <nav aria-label="Other categories" className="mt-16 border-t border-line pt-10">
           <h2 className="text-xl font-extrabold">Other categories</h2>
