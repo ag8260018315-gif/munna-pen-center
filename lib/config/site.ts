@@ -9,7 +9,7 @@ import { normaliseSiteUrl } from "@/lib/site-url-check";
  * the site is invented. See docs/CONTENT_CHECKLIST.md for what to add before launch.
  */
 
-const phoneE164 = normaliseIndianMobile("7979025166");
+const phoneE164 = normaliseIndianMobile("7979025165");
 if (!phoneE164) throw new Error("siteConfig: business phone number is not a valid Indian mobile number");
 
 // A second number to CALL. Only the main number above is used for WhatsApp links, because the owner has not said the

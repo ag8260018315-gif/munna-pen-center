@@ -354,7 +354,7 @@ model Lead {
   id               String     @id @default(cuid())
   name             String
   organizationName String?
-  /// E.164, e.g. +917979025166
+  /// E.164, e.g. +917979025165
   phone            String
   email            String?
   city             String?

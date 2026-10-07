@@ -34,9 +34,9 @@ describe("structured data", () => {
   it("describes the organisation using only facts the owner supplied", () => {
     const org = organizationJsonLd() as Record<string, unknown>;
     expect(org.name).toBe("Munna Pen Center");
-    expect(org.telephone).toBe("+917979025166");
+    expect(org.telephone).toBe("+917979025165");
     // Both numbers are published as contact points.
-    expect((org.contactPoint as { telephone: string }[]).map((point) => point.telephone)).toEqual(["+917979025166", "+918051388653"]);
+    expect((org.contactPoint as { telephone: string }[]).map((point) => point.telephone)).toEqual(["+917979025165", "+918051388653"]);
     // The owner supplied the street address and email; the PIN code is still unknown and must not appear.
     expect(org.address).toEqual({
       "@type": "PostalAddress",
