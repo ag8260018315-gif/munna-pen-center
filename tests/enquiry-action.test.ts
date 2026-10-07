@@ -49,7 +49,7 @@ afterEach(async () => {
 describe("submitBulkEnquiryAction", () => {
   it("stores a valid enquiry, resolves list items, and returns a reference + WhatsApp link", async () => {
     const { submitBulkEnquiryAction } = await import("@/app/actions/enquiry");
-    const state = await submitBulkEnquiryAction(initialFormState, bulkForm({}, [["ball-pens", "10 boxes"], ["not-a-product", "1"]]));
+    const state = await submitBulkEnquiryAction(initialFormState, bulkForm({}, [["glue-guns", "10 boxes"], ["not-a-product", "1"]]));
 
     expect(state.status).toBe("success");
     if (state.status !== "success") return;
@@ -67,8 +67,8 @@ describe("submitBulkEnquiryAction", () => {
       state: "Jharkhand",
       reference: state.reference,
     });
-    expect(saved.items).toEqual([{ productId: "ball-pens", productName: "Ball Pens", quantityNote: "10 boxes" }]);
-    expect(saved.productsRequired).toContain("Ball Pens (10 boxes)");
+    expect(saved.items).toEqual([{ productId: "glue-guns", productName: "Glue Guns", quantityNote: "10 boxes" }]);
+    expect(saved.productsRequired).toContain("Glue Guns (10 boxes)");
     expect(saved.productsRequired).toContain("Registers for the new session");
   });
 

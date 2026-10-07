@@ -31,24 +31,26 @@ export const siteConfig = {
     region: "Jharkhand",
     country: "India",
     countryCode: "IN",
-    /** Full street address has not been provided yet — intentionally not shown. */
-    streetAddress: null as string | null,
+    /** Supplied by the owner. The PIN code has not been provided yet — it is simply not shown. */
+    streetAddress: "Railway Cinema Road, Purana Bazar" as string | null,
     postalCode: null as string | null,
   },
 
   contact: {
     phoneE164,
     phoneDisplay: formatIndianPhone(phoneE164),
-    /** Not provided yet. Add it here and it appears in the footer and contact page. */
-    email: null as string | null,
+    email: "munnapen123@gmail.com" as string | null,
     /** Not provided yet. */
     businessHours: null as string | null,
   },
 
-  /** The business is GST registered. The GSTIN itself has not been provided — add it here to display it. */
+  /**
+   * The business is GST registered, and the public site says only that — it never prints the GSTIN number. The GSTIN
+   * is deliberately NOT in source code either: it is the server-only BUSINESS_GSTIN environment variable, read by
+   * `getBusinessGstin()` (lib/business.ts) for invoices and the admin later.
+   */
   gst: {
     registered: true,
-    gstin: null as string | null,
   },
 
   /** Social profiles — none provided yet. */

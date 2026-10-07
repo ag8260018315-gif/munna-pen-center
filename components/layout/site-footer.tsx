@@ -24,7 +24,7 @@ export async function SiteFooter() {
           </p>
           {gst.registered && (
             <p className="mt-4 inline-flex items-center rounded-full border border-white/15 px-3 py-1 text-xs font-semibold text-brand-100">
-              GST Registered{gst.gstin ? ` · GSTIN ${gst.gstin}` : ""}
+              GST Registered
             </p>
           )}
         </div>
@@ -32,7 +32,7 @@ export async function SiteFooter() {
         <nav aria-label="Product categories">
           <h2 className="font-display text-sm font-bold uppercase tracking-wider text-white">Products</h2>
           <ul className="mt-4 grid gap-2.5 text-sm">
-            {categories.map((category) => (
+            {categories.slice(0, 8).map((category) => (
               <li key={category.id}>
                 <Link href={`/categories/${category.slug}`} className={linkClass}>
                   {category.name}

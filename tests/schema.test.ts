@@ -15,10 +15,10 @@ beforeAll(async () => {
 });
 
 describe("records the business must keep are not deletable by accident", () => {
-  it("cascade-deletes only line items from their own parent document", () => {
+  it("cascade-deletes only line items from their own parent document (and sign-in sessions with their user)", () => {
     const withCascade = models().filter((m) => /onDelete: Cascade/.test(m.body)).map((m) => m.name).sort();
     // Deleting a Lead, Quotation, Order or Invoice must NOT silently take enquiries, approvals, GST lines or follow-ups with it.
-    expect(withCascade).toEqual(["EnquiryItem", "OrderItem", "QuotationItem"]);
+    expect(withCascade).toEqual(["AdminSession", "EnquiryItem", "OrderItem", "QuotationItem"]);
   });
 
   it.each([
@@ -39,6 +39,9 @@ describe("records the business must keep are not deletable by accident", () => {
     ["Quotation", "enquiry"],
     // A price the agent set must keep pointing at the approval that covers it.
     ["QuotationItem", "priceApproval"],
+    // A brand or category with products cannot be deleted from under them.
+    ["Product", "brand"],
+    ["Product", "category"],
   ])("%s.%s is protected (onDelete: Restrict)", (modelName, field) => {
     const line = model(modelName).split("\n").find((l) => new RegExp(`^\\s*${field}\\s`).test(l)) ?? "";
     expect(line, `${modelName}.${field}`).toMatch(/onDelete: Restrict/);
@@ -138,5 +141,90 @@ describe("approvals keep their evidence", () => {
     ]) {
       expect(header, String(rule)).toMatch(rule);
     }
+  });
+});
+
+describe("catalogue: brands and the product fields the owner asked for", () => {
+  it("brands live in their own table, separate from products", () => {
+    const brand = model("Brand");
+    expect(brand).toMatch(/\n\s*name\s+String\s+@unique/);
+    expect(brand).toMatch(/\n\s*slug\s+String\s+@unique/);
+    expect(brand).toMatch(/\n\s*isListedPublicly\s+Boolean\s+@default\(false\)/); // nothing is public until confirmed
+    expect(model("Product")).toMatch(/\n\s*brandId\s+String\?/);
+    expect(model("Product")).not.toMatch(/\n\s*brand\s+String/); // the old free-text column is gone
+  });
+
+  it("has every field the owner listed", () => {
+    const product = model("Product");
+    const wanted: Record<string, RegExp> = {
+      name: /\n\s*name\s+String\s/,
+      brand: /\n\s*brandId\s+String\?/,
+      category: /\n\s*categoryId\s+String\s/,
+      sku: /\n\s*sku\s+String\?\s+@unique/,
+      description: /\n\s*description\s+String\?/,
+      unit: /\n\s*unit\s+String\?/,
+      packSize: /\n\s*packSize\s+String\?/,
+      purchasePrice: /\n\s*purchasePrice\s+Decimal\?\s+@db\.Decimal\(12, 2\)/,
+      wholesalePrice: /\n\s*wholesalePrice\s+Decimal\?\s+@db\.Decimal\(12, 2\)/,
+      retailPrice: /\n\s*retailPrice\s+Decimal\?\s+@db\.Decimal\(12, 2\)/,
+      gstRatePercent: /\n\s*gstRatePercent\s+Decimal\?\s+@db\.Decimal\(5, 2\)/,
+      hsnCode: /\n\s*hsnCode\s+String\?/,
+      stockQuantity: /\n\s*stockQuantity\s+Int\?/,
+      minOrderQuantity: /\n\s*minOrderQuantity\s+Int\?/,
+      image: /\n\s*imageUrl\s+String\?/,
+      status: /\n\s*status\s+ProductStatus\s+@default\(DRAFT\)/,
+    };
+    for (const [field, pattern] of Object.entries(wanted)) expect(product, field).toMatch(pattern);
+  });
+
+  it("never invents values: no business field has a default (a new product is a DRAFT with everything else empty)", () => {
+    const product = model("Product");
+    for (const field of ["sku", "unit", "packSize", "purchasePrice", "wholesalePrice", "retailPrice", "hsnCode", "gstRatePercent", "stockQuantity", "minOrderQuantity"]) {
+      const line = product.split("\n").find((l) => new RegExp(`^\\s*${field}\\s`).test(l)) ?? "";
+      expect(line, field).toMatch(/\?/); // nullable
+      expect(line, field).not.toMatch(/@default/);
+    }
+  });
+
+  it("product status can deactivate without deleting", () => {
+    const block = /enum ProductStatus \{([^}]*)\}/.exec(schema)?.[1] ?? "";
+    expect(block.split("\n").map((l) => l.trim()).filter(Boolean)).toEqual(["DRAFT", "ACTIVE", "INACTIVE"]);
+  });
+
+  it("the public Product type carries none of the internal fields", async () => {
+    const types = await readFile("lib/domain/types.ts", "utf8");
+    const publicProduct = /export interface Product \{([\s\S]*?)\n\}/.exec(types)?.[1] ?? "";
+    expect(publicProduct.length).toBeGreaterThan(50);
+    for (const field of ["purchasePrice", "wholesalePrice", "retailPrice", "price", "sku", "stockQuantity", "minOrderQuantity", "hsnCode", "gstRatePercent"]) {
+      expect(publicProduct, field).not.toMatch(new RegExp(`\\b${field}\\b`));
+    }
+  });
+});
+
+describe("every relation states what happens on delete", () => {
+  it("no @relation(fields: …) relies on Prisma's default", () => {
+    const relations = [...schema.matchAll(/^\s*(\w+)\s+\w+\??\s+@relation\(([^)]*fields:[^)]*)\)/gm)];
+    expect(relations.length).toBeGreaterThan(30); // the pattern really finds them
+    expect(relations.filter((m) => !/onDelete:/.test(m[2]!)).map((m) => m[1])).toEqual([]);
+  });
+
+  it("every table is listed for row-level security in the migration notes", () => {
+    const header = schema.slice(0, schema.indexOf("generator client"));
+    expect(header).toMatch(/ENABLE ROW LEVEL SECURITY/);
+  });
+});
+
+describe("admin sign-in data", () => {
+  it("stores only a hash of the session token, never the token", () => {
+    const session = model("AdminSession");
+    expect(session).toMatch(/\n\s*tokenHash\s+String\s+@unique/);
+    expect(session).not.toMatch(/\n\s*token\s+String/);
+    expect(session).toMatch(/\n\s*expiresAt\s+DateTime\s/);
+  });
+
+  it("locks out repeated failed sign-ins", () => {
+    const user = model("AdminUser");
+    expect(user).toMatch(/\n\s*failedLoginCount\s+Int\s+@default\(0\)/);
+    expect(user).toMatch(/\n\s*lockedUntil\s+DateTime\?/);
   });
 });

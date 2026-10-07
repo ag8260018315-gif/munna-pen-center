@@ -28,12 +28,14 @@ npm run dev                     # http://localhost:3000
 | `npm run smoke` | Fetches every route of a **running** site and checks status, title, one `<h1>`, alt text, 404s, admin closed. `npm run smoke -- http://localhost:3100`, or `-- --dev` against `next dev` |
 | `npm run enquiries` | Prints enquiries saved by the website (`-- --json` for raw JSON, `-- 5` for the latest 5) |
 | `npm run db:validate` | Validates `prisma/schema.prisma` (works offline) |
+| `npm run db:seed` | Loads the owner-supplied categories, brands and five products into the database. **Dry run by default**; `-- --apply` writes, and only rows that are missing (never overwrites). Uses `DIRECT_URL` / `DATABASE_URL` from your shell or `.env.local` |
+| `npm run db:test-migration` | Runs `prisma/tests/migration-checks.sql` against the throwaway database in `TEST_DATABASE_URL` (never production). CI does this on every push |
 
 ## What Version 1 includes
 
-- **Pages:** Home · Products (search, category filter, pagination) · Product detail · 10 category pages · Bulk Orders · Request Quote · About · Contact — all with clean URLs.
+- **Pages:** Home · Products (search, category filter, pagination) · Product detail · 23 category pages · Bulk Orders · Request Quote · About · Contact — all with clean URLs.
 - **Header** with *Request Bulk Quote* and *WhatsApp Us*, and a **sticky Call / WhatsApp / Get Quote bar on mobile**.
-- **Catalogue** — 10 categories and a placeholder set of generic product *types* (see below). Cards show image, name, category, description, pack/unit info and **“Get Wholesale Price” / “Request Quote”** — never a price.
+- **Catalogue** — the 23 categories and 20 brands the owner listed, and the five products identified so far (glue guns, glue sticks, cello tape, adhesive tape, calculators); more are added by the owner later (see below). Cards show image, name, category, description and **“Get Wholesale Price” / “Request Quote”** — never a price. A category with nothing listed yet says so, offers a quote request, and is kept out of search results.
 - **Enquiry list** — visitors tap **Add to Enquiry** on products; the list (with optional quantities) becomes the product lines of the quote request.
 - **Forms** — bulk enquiry, quote request, contact. Server-side validation, inline errors, loading / success / error states, spam honeypot, a reference number on success, and a **pre-filled WhatsApp fallback** so a lead is never lost.
 - **WhatsApp** — click-to-chat links in the correct international format (`https://wa.me/917979025166`) with the pre-filled messages from the brief.
@@ -53,10 +55,15 @@ No database connection, no admin sign-in, no AI agent, no WhatsApp Business API,
 2. V1 stores enquiries as one JSON object per line in **`.data/enquiries.jsonl`** (override with `ENQUIRY_DATA_DIR`). Read them with `npm run enquiries`.
 3. If saving fails — or the store does not answer within 8 seconds — the visitor is **never told it worked**: they see an error and a one-tap **WhatsApp** button with their enquiry already written out.
 
-⚠ **Hosting matters.** The file store needs a server with a **persistent disk** (a VPS, Docker volume, or your own machine). On **serverless hosts such as Vercel the filesystem is read-only/ephemeral**, so every submission would fall back to WhatsApp. Either host V1 on a persistent server, or do Phase 2 (connect a database) first — that is exactly what the repository layer is for.
+**With a database (`DATABASE_URL` set):** enquiries are saved to Supabase instead of the file — each becomes a *Lead* plus an *Enquiry* with its product lines, in one transaction (a returning visitor with the same phone and name reuses their lead; an existing lead is never edited). Until the admin dashboard exists, read them in the Supabase Table Editor (`Enquiry`, `Lead`). `npm run enquiries` reads only the file store. The public catalogue stays on the built-in lists until you set `CATALOGUE_SOURCE=database` (do that after loading real products, so the site never looks empty).
+
+⚠ **Hosting matters — and the plan is Vercel + Supabase.** The file store needs a server with a **persistent disk**. **Vercel's filesystem is read-only/ephemeral**, so on Vercel *every submission would fall back to WhatsApp*. Before launching on Vercel, do Phase 2: connect Supabase PostgreSQL behind the repository interfaces (`PrismaEnquiryRepository`) — that is exactly what the repository layer is for. Until then use a host with a persistent disk, or accept WhatsApp-only enquiries.
 
 ## Deploying
 
+Vercel step by step, including which environment variables to set and how to read a failed build: [`docs/DEPLOY_VERCEL.md`](docs/DEPLOY_VERCEL.md).
+
+0. On Vercel set the environment variables from `.env.example` for Production (at least `NEXT_PUBLIC_SITE_URL`; later `DATABASE_URL`, `DIRECT_URL`, `SUPABASE_*`, `AUTH_SECRET`). Only `NEXT_PUBLIC_SITE_URL` is public; everything else stays server-side.
 1. Set **`NEXT_PUBLIC_SITE_URL`** to your real domain **at build time** (e.g. `https://www.yourdomain.in`). It feeds canonical URLs, the sitemap and social tags; `npm run build` warns if it is missing.
 2. `npm run build && npm start` on a Node.js 22.12+ host with a persistent disk (or after connecting a database).
 3. Run `npm run smoke -- https://your-domain` against the live site.
@@ -81,7 +88,9 @@ Security headers (HSTS in production, `nosniff`, frame denial, referrer and perm
 | Colours, fonts, spacing | `app/globals.css` (`@theme`) |
 | Logo | `components/brand/logo.tsx`, `public/brand/*.svg`, `app/icon.svg` |
 
-**About the product list:** `data/products.ts` ships *generic product types* (“Ball Pens”, “Registers & Ledgers”…) with **no brands, SKUs, prices, stock or pack sizes** — the cards say “Pack sizes on request”. It is a starting point for the owner to confirm, edit or replace, not an inventory.
+**About the product list:** `data/products.ts` holds only the **five products the owner identified**; `data/categories.ts` the 23 categories and `data/brands.ts` the 20 brands (a separate list — brands are not products, nothing is attached to them). There are **no SKUs, prices, GST rates, HSN codes, stock or pack sizes** anywhere in the repo. The database schema has a place for all of them (`Product`: SKU, brand, category, unit, pack size, purchase / wholesale / retail price, GST rate, HSN, stock, minimum order quantity, image, active status) so the owner can add real products later from the admin. “Cello Tape” and “Adhesive Tape” are product types (categories), not brands.
+
+**GSTIN:** the website only says “GST Registered” — it never prints the number. The number itself is deliberately *not* in the code; it will live in the server-only `BUSINESS_GSTIN` environment variable and is used for invoices later (it can be left unset for now).
 
 **Logo:** a fountain-pen nib resting on an ink line, on an indigo tile. Outlined SVG lockups (no font dependency, safe for print) are in `public/brand/` (`logo.svg`, `logo-on-dark.svg`, `logo-mark.svg`).
 
@@ -130,4 +139,4 @@ docs/                 Architecture, AI sales agent, launch checklist
 
 ## Verified before hand-off
 
-`npm run check` (typecheck, ESLint, 231 unit tests) · production build · `npm run smoke` (78 routes) · 33-step browser run through search, enquiry list, validation errors, submissions, persistence, honeypot and the mobile bar · axe-core WCAG 2.2 AA on 10 pages × 2 viewports.
+`npm run check` (typecheck, ESLint, 268 unit tests (11 of them run against a throwaway PostgreSQL)) · production build · `npm run smoke` (41 routes) · 33-step browser run through search, enquiry list, validation errors, submissions, persistence, honeypot and the mobile bar · axe-core WCAG 2.2 AA on 10 pages × 2 viewports.

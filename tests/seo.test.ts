@@ -35,9 +35,18 @@ describe("structured data", () => {
     const org = organizationJsonLd() as Record<string, unknown>;
     expect(org.name).toBe("Munna Pen Center");
     expect(org.telephone).toBe("+917979025166");
-    expect(org.address).toEqual({ "@type": "PostalAddress", addressLocality: "Dhanbad", addressRegion: "Jharkhand", addressCountry: "IN" });
-    // Nothing invented: no email, street, postcode, ratings, reviews or founding date until provided.
-    for (const key of ["email", "aggregateRating", "review", "foundingDate", "numberOfEmployees", "award"]) expect(org).not.toHaveProperty(key);
+    // The owner supplied the street address and email; the PIN code is still unknown and must not appear.
+    expect(org.address).toEqual({
+      "@type": "PostalAddress",
+      addressLocality: "Dhanbad",
+      addressRegion: "Jharkhand",
+      addressCountry: "IN",
+      streetAddress: "Railway Cinema Road, Purana Bazar",
+    });
+    expect(org.email).toBe("munnapen123@gmail.com");
+    // Nothing invented: no postcode, GSTIN, ratings, reviews or founding date until provided.
+    for (const key of ["taxID", "vatID", "aggregateRating", "review", "foundingDate", "numberOfEmployees", "award"]) expect(org).not.toHaveProperty(key);
+    expect(JSON.stringify(org)).not.toMatch(/postalCode/);
   });
 
   it("describes the website with a product-search action", () => {

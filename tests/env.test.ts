@@ -58,4 +58,44 @@ describe("environment configuration", () => {
       expect(forbidden.test(fine), fine).toBe(false);
     }
   });
+
+  it("tolerates the paste slips people make in a hosting dashboard — quotes, spaces, newlines — instead of failing the build", () => {
+    const url = "postgresql://user:pass@db.example.test:5432/postgres";
+    for (const typed of [`"${url}"`, `'${url}'`, ` ${url}\n`, `"  ${url} "`]) {
+      expect(getServerEnv({ DATABASE_URL: typed }).DATABASE_URL, typed).toBe(url);
+    }
+    expect(getServerEnv({ AUTH_SECRET: ' "abc123" ' }).AUTH_SECRET).toBe("abc123");
+    expect(getServerEnv({ DATABASE_URL: '""' }).DATABASE_URL).toBeUndefined();
+    expect(getServerEnv({ CATALOGUE_SOURCE: ' "database" ' }).CATALOGUE_SOURCE).toBe("database");
+    // A genuinely wrong value still fails loudly, naming the variable but not echoing it.
+    expect(() => getServerEnv({ DATABASE_URL: "not a url" })).toThrow(/DATABASE_URL/);
+    expect(() => getServerEnv({ CATALOGUE_SOURCE: "sometimes" })).toThrow(/CATALOGUE_SOURCE/);
+  });
+
+  it("BUSINESS_GSTIN: whatever is typed, reading the environment never throws (a bad GSTIN must not break a build)", () => {
+    for (const value of ["XXXXXXXXXXXXXXX", "123", `"29ABCDE1234F1Z5"`, " ", "", "GSTIN: 29ABCDE1234F1Z5", "not-a-gstin"]) {
+      expect(() => getServerEnv({ BUSINESS_GSTIN: value }), value).not.toThrow();
+    }
+    expect(getServerEnv({}).BUSINESS_GSTIN).toBeUndefined();
+    expect(getServerEnv({ BUSINESS_GSTIN: "" }).BUSINESS_GSTIN).toBeUndefined();
+  });
+
+  it("no GSTIN is written into source, docs or config — it lives only in the BUSINESS_GSTIN environment variable", async () => {
+    const { readdir, readFile: read } = await import("node:fs/promises");
+    const gstin = /\b\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]\b/;
+    const offenders: string[] = [];
+    async function walk(dir: string) {
+      for (const entry of await readdir(dir, { withFileTypes: true })) {
+        if (entry.name === "node_modules" || entry.name === ".next" || entry.name === ".git" || entry.name === "generated") continue;
+        const full = `${dir}/${entry.name}`;
+        if (entry.isDirectory()) await walk(full);
+        else if (/\.(tsx?|mjs|json|md|prisma|ya?ml|example|css|svg)$/.test(entry.name) || entry.name.startsWith(".env")) {
+          if (gstin.test(await read(full, "utf8"))) offenders.push(full);
+        }
+      }
+    }
+    for (const dir of ["app", "components", "content", "data", "lib", "docs", "prisma", "scripts", ".github"]) await walk(dir);
+    for (const file of ["README.md", "CLAUDE.md", ".env.example", "package.json"]) if (gstin.test(await read(file, "utf8"))) offenders.push(file);
+    expect(offenders).toEqual([]);
+  });
 });

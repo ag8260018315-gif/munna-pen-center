@@ -14,7 +14,7 @@ export default function AboutPage() {
     { icon: Building2, label: "Business", value: "Wholesale stationery & office supplies" },
     { icon: MapPin, label: "Location", value: `${location.locality}, ${location.region}, ${location.country}` },
     { icon: Truck, label: "Supply area", value: "All India" },
-    ...(gst.registered ? [{ icon: Receipt, label: "GST", value: gst.gstin ? `Registered · GSTIN ${gst.gstin}` : "GST registered" }] : []),
+    ...(gst.registered ? [{ icon: Receipt, label: "GST", value: "GST registered" }] : []),
     ...(about.established ? [{ icon: PackageCheck, label: "Established", value: about.established }] : []),
   ];
 

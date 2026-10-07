@@ -49,6 +49,7 @@ This document explains how the site is put together and — more importantly —
 ```mermaid
 erDiagram
   Category ||--o{ Product : contains
+  Brand ||--o{ Product : "brand of"
   Category ||--o{ Category : "parent of"
   Lead ||--o{ Enquiry : raises
   Lead }o--o| Customer : "converts to"
@@ -79,7 +80,10 @@ erDiagram
 
 Design notes:
 
-- **No price on `Product`.** Wholesale prices are quoted per customer and quantity, so prices exist only on `QuotationItem` / `OrderItem` / `InvoiceItem` (all `Decimal(12,2)`, INR). The website cannot show a price because the data model has nowhere to keep one.
+- **Prices on `Product` are internal.** `Product` carries `purchasePrice`, `wholesalePrice` and `retailPrice` (all nullable `Decimal(12,2)`) so the owner can keep a price list in the admin — but the **website never shows them**: the public `Product` type has no price field, the public catalogue repository selects only public columns, and a test guards the type. Wholesale prices are still quoted per customer and quantity (`QuotationItem` / `OrderItem` / `InvoiceItem`), and the owner approves every quotation.
+- **Brands are their own table** (`Brand`), not products; a product may have no brand. `isListedPublicly` defaults to false, so nothing appears on the website until the owner confirms it. Brand and Category deletes are `Restrict`ed while products use them.
+- **Nothing is pre-filled.** SKU, unit, pack size, prices, HSN, GST rate, stock and minimum order quantity are all nullable with no default: NULL means "not entered", never 0. A new product starts as `DRAFT`; `INACTIVE` hides it without deleting it. Add real products from the admin — the repo contains no invented inventory.
+- **Supabase.** Tables are reached only from the server (Prisma via `DATABASE_URL`, pooled; migrations via `DIRECT_URL`). Row-level security is switched on for every table with no policies, so the Supabase public API can never read prices; the browser gets no Supabase key. Product images go to Supabase Storage (`SUPABASE_STORAGE_BUCKET`, uploaded server-side with the service-role key), with Cloudinary as a later option behind the same `imageUrl` / `imagePath` fields.
 - **No stock figures.** Add an `InventoryItem` model when the business has a stock process. Nothing is invented meanwhile.
 - **Lead → Customer.** A *Lead* is anyone who enquired. A *Customer* exists once the business quotes or sells to them; the lead is linked to it on conversion.
 - **GST fields are present but empty by default:** `Product.hsnCode`, `Product.gstRatePercent`, per-line `gstRatePercent`, `Invoice.cgstTotal / sgstTotal / igstTotal`, `buyerGstin`, `placeOfSupply`, `irn`. They are filled from the business’s real tax data — never guessed.
@@ -94,14 +98,17 @@ Design notes:
 
 ### Connecting the database (Phase 2 checklist)
 
+> **Status:** the first migration (`prisma/migrations/0001_init`) is written and tested but **not run**. Read [`MIGRATION_0001_REVIEW.md`](MIGRATION_0001_REVIEW.md) first; it lists every table, relationship, row-level-security rule and risk, and needs the owner's approval before it is applied to Supabase.
+
+
 1. Provision PostgreSQL (Neon, Supabase, Railway, RDS…); set `DATABASE_URL`.
 2. `npm i @prisma/client`, add `@prisma/adapter-pg` per the Prisma 7 docs, `npx prisma migrate dev --name init`.
 3. Implement `PrismaCatalogueRepository` and `PrismaEnquiryRepository` against the interfaces in `lib/repositories/types.ts`. The enquiry implementation upserts a `Lead` by phone, then creates the `Enquiry` and its `EnquiryItem`s in one transaction.
-4. In `lib/repositories/index.ts`, return the Prisma repositories when `DATABASE_URL` is set.
-5. Write a one-off script that loads `data/categories.ts` / `data/products.ts` (once the owner has confirmed them) and any `.data/enquiries.jsonl` into the database.
+4. **Done in code:** `lib/repositories/index.ts` returns `PrismaEnquiryRepository` whenever `DATABASE_URL` is set, and `PrismaCatalogueRepository` when `CATALOGUE_SOURCE=database`. Both use `lib/db/client.ts` (server-only, pooled `pg` connection, tiny pool per serverless instance). The catalogue queries use explicit `select`s of public columns only — prices, SKU, stock, HSN and GST can never reach a page — and tests (against a real PostgreSQL) enforce it. Public pages re-generate every 5 minutes (`revalidate = 300`), so product edits appear without a redeploy.
+5. `npm run db:seed` (dry run first) loads the owner-supplied categories, brands and five products (`data/`) into the database — create-only, never overwriting. Any enquiries already in `.data/enquiries.jsonl` would need a one-off import; none exist yet.
 6. Replace `StorageUnavailableError` handling only if you want different wording — the WhatsApp fallback already works for any store failure.
 
-No page or component changes are required.
+No page or component changes were required.
 
 ## 3. The enquiry flow
 
