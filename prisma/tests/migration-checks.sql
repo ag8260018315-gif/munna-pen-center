@@ -1,7 +1,8 @@
--- Behavioural checks for migration 0001_init. Run against a THROWAWAY database that already has the migration applied:
+-- Behavioural checks for migration 0001_init. Run against a database that already has the migration applied:
 --   psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f prisma/tests/migration-checks.sql
--- Everything happens inside one transaction that is rolled back, so nothing is left behind. It never touches Supabase
--- unless you point it there — don't. Each "expect_fail" must raise; each plain statement must succeed.
+-- or paste the whole file into the Supabase SQL Editor and click Run: the result row says ALL MIGRATION CHECKS PASSED.
+-- Everything happens inside one transaction that is rolled back, so nothing is left behind. Run it on the EMPTY database
+-- right after applying the migration (before loading any real data), then confirm the tables are still empty. Each "expect_fail" must raise; each plain statement must succeed.
 BEGIN;
 
 CREATE FUNCTION pg_temp.expect_fail(label text, stmt text) RETURNS void LANGUAGE plpgsql AS $$
@@ -156,5 +157,7 @@ BEGIN
   END IF;
 END $$;
 
+-- Reaching this line means every check above passed (a failed check raises an error and stops the script).
+SELECT 'ALL MIGRATION CHECKS PASSED' AS result;
+
 ROLLBACK;
-\echo ALL MIGRATION CHECKS PASSED

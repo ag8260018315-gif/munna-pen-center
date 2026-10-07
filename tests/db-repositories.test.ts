@@ -207,6 +207,45 @@ describe.skipIf(!url)("seeding the owner-supplied catalogue", () => {
   });
 });
 
+describe.skipIf(!url)("the seed SQL that gets pasted into the Supabase SQL Editor", () => {
+  it("really loads the owner-supplied catalogue, is repeatable, and never overwrites an edit", async () => {
+    const { Client } = await import("pg");
+    const { readFile } = await import("node:fs/promises");
+    const sql = await readFile("prisma/seed/catalogue.sql", "utf8");
+    const { categories } = await import("@/data/categories");
+    const { brands } = await import("@/data/brands");
+    const { products } = await import("@/data/products");
+
+    const client = new Client({ connectionString: url });
+    await client.connect();
+    const clean = async () => {
+      await client.query(`DELETE FROM "Product" WHERE slug = ANY($1)`, [products.map((p) => p.slug)]);
+      await client.query(`DELETE FROM "Brand" WHERE slug = ANY($1)`, [brands.map((b) => b.slug)]);
+      await client.query(`DELETE FROM "Category" WHERE slug = ANY($1)`, [categories.map((c) => c.slug)]);
+    };
+    await clean();
+    try {
+      await client.query(sql); // the whole file, exactly as the SQL Editor would run it
+      const count = async (table: string, slugs: string[]) => Number((await client.query(`SELECT count(*) FROM "${table}" WHERE slug = ANY($1)`, [slugs])).rows[0].count);
+      expect(await count("Category", categories.map((c) => c.slug))).toBe(categories.length);
+      expect(await count("Brand", brands.map((b) => b.slug))).toBe(brands.length);
+      expect(await count("Product", products.map((p) => p.slug))).toBe(products.length);
+
+      const product = (await client.query(`SELECT p.*, c.slug AS category_slug FROM "Product" p JOIN "Category" c ON c.id = p."categoryId" WHERE p.slug = 'glue-guns'`)).rows[0];
+      expect(product).toMatchObject({ name: "Glue Guns", status: "ACTIVE", category_slug: "glue-guns", sku: null, purchasePrice: null, wholesalePrice: null, retailPrice: null, hsnCode: null, gstRatePercent: null, stockQuantity: null, brandId: null });
+      expect((await client.query(`SELECT count(*) FROM "Brand" WHERE slug = ANY($1) AND "isListedPublicly"`, [brands.map((b) => b.slug)])).rows[0].count).toBe(String(brands.length));
+
+      await client.query(`UPDATE "Product" SET name = 'Owner Edit' WHERE slug = 'glue-guns'`);
+      await client.query(sql); // run it again
+      expect((await client.query(`SELECT name FROM "Product" WHERE slug = 'glue-guns'`)).rows[0].name).toBe("Owner Edit");
+      expect(await count("Category", categories.map((c) => c.slug))).toBe(categories.length);
+    } finally {
+      await clean();
+      await client.end();
+    }
+  });
+});
+
 describe("the public catalogue queries never ask for private columns", () => {
   it("prisma-catalogue.ts selects explicit public columns and never names a price, SKU, stock or tax column", async () => {
     const { readFile } = await import("node:fs/promises");

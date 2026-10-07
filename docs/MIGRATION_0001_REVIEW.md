@@ -124,6 +124,9 @@ There is no Supabase-user-level access at all. Every operation happens in the Ne
 - The checks run on plain PostgreSQL 16 with `anon` / `authenticated` simulated. **Please apply the migration first to a new, empty Supabase project (staging) and run `npm run db:test-migration` against it** before touching the real one.
 
 ## How to run it, once approved
+
+**Easiest, with no secrets shared:** follow [`SUPABASE_SETUP.md`](SUPABASE_SETUP.md) — paste three SQL files into the Supabase SQL Editor. The steps below are the command-line alternative.
+
 1. Create the Supabase project; copy `DATABASE_URL` (pooled), `DIRECT_URL` (direct), `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` into Vercel → Settings → Environment Variables (and `.env.local` for local work). Never commit them.
 2. With `DIRECT_URL` set in your shell: `npx prisma migrate deploy`.
 3. `TEST_DATABASE_URL=<a throwaway database, NOT production> npm run db:test-migration`.
