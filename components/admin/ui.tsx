@@ -34,7 +34,7 @@ export function Notice({ kind, children }: { kind: "success" | "error" | "info";
 export function DatabaseRequired() {
   return (
     <Notice kind="info">
-      The database is not connected, so there is nothing to manage yet. Add <code>DATABASE_URL</code> (see docs/SUPABASE_SETUP.md) and sign in.
+      The database is not connected, so there is nothing to manage yet. Connect it as described in docs/SUPABASE_SETUP.md, then sign in.
     </Notice>
   );
 }

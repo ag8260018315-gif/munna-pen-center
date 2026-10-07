@@ -37,7 +37,7 @@ export function SetupForm() {
   return (
     <form action={action} aria-busy={pending} className="grid gap-5">
       <ErrorBanner message={state.error} />
-      <TextField id="token" label="Setup key" required type="password" autoComplete="off" hint="The ADMIN_SETUP_TOKEN you added in Vercel." error={errors.token} maxLength={300} />
+      <TextField id="token" label="Setup key" required type="password" autoComplete="off" hint="The one-time setup key you added in Vercel." error={errors.token} maxLength={300} />
       <TextField id="name" label="Your name" required autoComplete="name" defaultValue={state.values?.name} error={errors.name} maxLength={100} />
       <TextField id="email" label="E-mail" required type="email" autoComplete="username" defaultValue={state.values?.email} error={errors.email} maxLength={254} />
       <TextField id="password" label="Password" required type="password" autoComplete="new-password" hint="At least 12 characters." error={errors.password} maxLength={128} />
