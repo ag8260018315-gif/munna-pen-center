@@ -61,6 +61,8 @@ No database connection, no admin sign-in, no AI agent, no WhatsApp Business API,
 
 ## Deploying
 
+Vercel step by step, including which environment variables to set and how to read a failed build: [`docs/DEPLOY_VERCEL.md`](docs/DEPLOY_VERCEL.md).
+
 0. On Vercel set the environment variables from `.env.example` for Production (at least `NEXT_PUBLIC_SITE_URL`, `BUSINESS_GSTIN`; later `DATABASE_URL`, `DIRECT_URL`, `SUPABASE_*`, `AUTH_SECRET`). Only `NEXT_PUBLIC_SITE_URL` is public; everything else stays server-side.
 1. Set **`NEXT_PUBLIC_SITE_URL`** to your real domain **at build time** (e.g. `https://www.yourdomain.in`). It feeds canonical URLs, the sitemap and social tags; `npm run build` warns if it is missing.
 2. `npm run build && npm start` on a Node.js 22.12+ host with a persistent disk (or after connecting a database).
