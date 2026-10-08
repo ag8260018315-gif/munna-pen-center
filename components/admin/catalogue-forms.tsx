@@ -9,7 +9,7 @@ import type { AdminFormState } from "@/lib/validation/admin-catalogue";
 type Action = (prev: AdminFormState, data: FormData) => Promise<AdminFormState>;
 const initial: AdminFormState = {};
 
-function Checkbox({ id, label, hint, defaultChecked }: { id: string; label: string; hint?: string; defaultChecked?: boolean }) {
+export function Checkbox({ id, label, hint, defaultChecked }: { id: string; label: string; hint?: string; defaultChecked?: boolean }) {
   return (
     <div className="flex items-start gap-3">
       <input id={id} name={id} type="checkbox" defaultChecked={defaultChecked} aria-describedby={hint ? `${id}-hint` : undefined} className="mt-1 size-5 rounded border-slate-400" />
@@ -25,11 +25,12 @@ function Checkbox({ id, label, hint, defaultChecked }: { id: string; label: stri
   );
 }
 
-function FormShell({ action, children, submitLabel }: { action: Action; children: (s: AdminFormState) => React.ReactNode; submitLabel: string }) {
+export function FormShell({ action, children, submitLabel }: { action: Action; children: (s: AdminFormState) => React.ReactNode; submitLabel: string }) {
   const [state, formAction, pending] = useActionState(action, initial);
   return (
     <form action={formAction} aria-busy={pending} className="grid gap-5">
       {state.message && !state.ok && <Notice kind="error">{state.message}</Notice>}
+      {state.message && state.ok && <Notice kind="success">{state.message}</Notice>}
       {/* React resets uncontrolled fields after a submit (and keeps a changed <select> default out of the DOM), so the
           fields are remounted with the values the server sent back: nothing the person typed is lost on an error. */}
       <div key={state.values ? JSON.stringify(state.values) : "fresh"} className="grid gap-5">
@@ -44,7 +45,7 @@ function FormShell({ action, children, submitLabel }: { action: Action; children
   );
 }
 
-const pick = (state: AdminFormState, initialValues: Record<string, string>, key: string) => state.values?.[key] ?? initialValues[key] ?? "";
+export const pick = (state: AdminFormState, initialValues: Record<string, string>, key: string) => state.values?.[key] ?? initialValues[key] ?? "";
 const checked = (state: AdminFormState, initialValues: Record<string, string>, key: string, fallback: boolean) =>
   state.values ? key in state.values : key in initialValues ? initialValues[key] === "on" : fallback;
 

@@ -99,3 +99,15 @@ export function financialYearOf(date: Date): string {
 }
 
 export const quotationNumber = (financialYear: string, sequence: number) => `QT-${financialYear}-${String(sequence).padStart(4, "0")}`;
+
+/** "1179998820.00" → "₹11,79,99,88,20.00"-style Indian grouping, from the exact decimal string (no floating point). */
+export function formatRupees(amount: string | null | undefined): string {
+  if (amount === null || amount === undefined) return "—";
+  const m = /^(\d+)(?:\.(\d{1,2}))?$/.exec(amount);
+  if (!m) return "—";
+  const whole = m[1]!;
+  const last3 = whole.slice(-3);
+  const rest = whole.slice(0, -3);
+  const grouped = rest ? `${rest.replace(/\B(?=(\d{2})+(?!\d))/g, ",")},${last3}` : last3;
+  return `₹${grouped}.${(m[2] ?? "").padEnd(2, "0") || "00"}`;
+}

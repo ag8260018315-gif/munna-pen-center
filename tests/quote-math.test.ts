@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeQuote, financialYearOf, fromPaise, quotationNumber, rateToBasisPoints, toPaise } from "@/lib/domain/quote-math";
+import { computeQuote, financialYearOf, formatRupees, fromPaise, quotationNumber, rateToBasisPoints, toPaise } from "@/lib/domain/quote-math";
 
 describe("money in paise", () => {
   it("parses and prints exactly", () => {
@@ -69,5 +69,17 @@ describe("financial year and numbering", () => {
   it("formats quotation numbers", () => {
     expect(quotationNumber("2026-27", 7)).toBe("QT-2026-27-0007");
     expect(quotationNumber("2026-27", 12345)).toBe("QT-2026-27-12345");
+  });
+});
+
+describe("rupee display", () => {
+  it("groups the Indian way, from the exact decimal string", () => {
+    expect(formatRupees("0.00")).toBe("₹0.00");
+    expect(formatRupees("999.5")).toBe("₹999.50");
+    expect(formatRupees("1000.00")).toBe("₹1,000.00");
+    expect(formatRupees("118050.00")).toBe("₹1,18,050.00");
+    expect(formatRupees("1179998820.00")).toBe("₹1,17,99,98,820.00");
+    expect(formatRupees(null)).toBe("—");
+    expect(formatRupees("abc")).toBe("—");
   });
 });

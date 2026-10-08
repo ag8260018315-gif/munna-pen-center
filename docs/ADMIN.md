@@ -11,9 +11,25 @@ Address: `https://<your-site>/admin`. It only works once the database is connect
 | Brands | Add, edit, deactivate; choose whether a brand is shown on the website |
 | Categories | Add, edit, deactivate; summary, description, order |
 | Inventory | Type a stock number per product and press Save. Empty = "not tracked", 0 = out of stock |
-| Enquiries | Read every website enquiry (newest first), filter by status, call or e-mail the sender |
+| Enquiries | Read every website enquiry (newest first), filter by status, call or e-mail the sender, and **Create quotation** from it |
+| Customers | Organisations you quote. Created automatically from an enquiry, or added by hand (contact, phone, GSTIN, billing address) |
+| Quotations | Draft, price, mark as sent, accept / decline / cancel; print view; WhatsApp message prepared for you to send |
 
-Still marked **Soon**: customers, leads, quotes, orders, invoices, payments, follow-ups, AI sales agent, settings.
+Still marked **Soon**: leads, orders, invoices, payments, follow-ups, AI sales agent, settings.
+
+## Quotations — how they work
+
+1. Open an enquiry and press **Create quotation** (or *Quotations → New quotation* for a customer you already have). The draft has the customer and the items they asked for, and **no prices**. Quantities are read from what they wrote where possible, otherwise set to 1 — check each one.
+2. For every item set the **price per unit (ex-GST)** and the **GST rate**. When you add an item by choosing a product, its wholesale price, GST rate and HSN are filled in for you (owner only) — change them if this customer gets a different deal. Nothing else is filled in.
+3. Totals are exact: line amount = quantity × price; GST is worked out per line and rounded to the paisa; there is **no total** until every item has a price and a GST rate.
+4. Set *Valid until* and *Terms* if you want them (optional; nothing is pre-written).
+5. **Print view** gives a clean page to print or save as PDF. **Open in WhatsApp** prepares the message in *your* WhatsApp for the customer's number — you read it and press send.
+6. **Mark as sent** records that *you* shared it. After that the items are frozen (the database enforces this too). Then record the outcome: *Customer accepted*, *declined*, *expired* or *cancelled*. Accepting marks the enquiry as won.
+7. Quotations are never deleted — cancel them. Numbers look like `QT-2026-27-0001`, restart each April 1, and have no gaps.
+
+Only the **owner** can enter prices, GST and HSN, and can mark a quotation sent, accepted, declined, expired or cancelled. A staff account can create drafts and edit descriptions, quantities and units. This system sends nothing to a customer by itself; the AI sales assistant, when it arrives, can only *propose* prices that you approve.
+
+The quotation print view shows "GST Registered" and your address and phone, like the website. It does **not** print your GSTIN — that comes with invoices.
 
 ## Rules the admin follows
 

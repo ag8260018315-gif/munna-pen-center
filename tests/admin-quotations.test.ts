@@ -42,7 +42,6 @@ describe.skipIf(!url)("quotations on a real database", () => {
   async function cleanup() {
     // Quotations can not be deleted by design (trigger), so tests use a dedicated customer whose rows we leave tagged.
     // They are removed by truncating inside a replica-role session, which is only possible on a throwaway database.
-    await db.$executeRawUnsafe(`SET session_replication_role = replica`).catch(() => undefined);
     await db.$transaction(async (tx) => {
       await tx.$executeRawUnsafe(`SET LOCAL session_replication_role = replica`);
       await tx.$executeRawUnsafe(`DELETE FROM "QuotationItem" WHERE "quotationId" IN (SELECT q."id" FROM "Quotation" q JOIN "Customer" c ON c."id" = q."customerId" WHERE c."organizationName" LIKE 'QTest %')`);

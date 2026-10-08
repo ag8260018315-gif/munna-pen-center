@@ -10,7 +10,7 @@ describe("admin data functions are all behind requireAdmin()", () => {
     for (const file of files) {
       const source = await readFile(`lib/admin/${file}`, "utf8");
       const parts = source.split(/^export async function /m).slice(1);
-      expect(parts.length, file).toBeGreaterThan(5);
+      expect(parts.length, file).toBeGreaterThanOrEqual(3); // proves the file was parsed, not that it is large
       for (const part of parts) {
         const name = part.slice(0, part.indexOf("("));
         const firstLines = part.split("\n").slice(0, 4).join("\n");
