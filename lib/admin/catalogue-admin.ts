@@ -7,6 +7,7 @@ import {
   brandSchema,
   categorySchema,
   fieldErrors,
+  imageAltSchema,
   productSchema,
   slugify,
   stockSchema,
@@ -225,6 +226,50 @@ export async function updateStock(id: string, raw: Record<string, string>): Prom
 export async function listInventory(params: { q?: string; page?: number }) {
   await requireAdmin();
   return listProducts({ q: params.q, page: params.page });
+}
+
+// ───────────────────────────── product picture ─────────────────────────────
+
+export interface ProductPicture {
+  imageUrl: string | null;
+  imagePath: string | null;
+  imageAlt: string | null;
+}
+
+export async function getProductPicture(id: string): Promise<(ProductPicture & { name: string }) | null> {
+  await requireAdmin();
+  return getDb().product.findUnique({ where: { id }, select: { name: true, imageUrl: true, imagePath: true, imageAlt: true } });
+}
+
+/** Records the new picture and returns the path of the one it replaced (so the caller can delete that file). */
+export async function setProductPicture(id: string, picture: { imageUrl: string; imagePath: string; imageAlt: string }): Promise<Result<{ id: string; previousPath: string | null }>> {
+  await requireAdmin();
+  const alt = imageAltSchema.safeParse(picture.imageAlt);
+  if (!alt.success) return { ok: false, message: alt.error.issues[0]?.message ?? "Describe the picture.", fieldErrors: { imageAlt: alt.error.issues[0]?.message ?? "Describe the picture" } };
+  try {
+    const db = getDb();
+    const before = await db.product.findUnique({ where: { id }, select: { imagePath: true } });
+    if (!before) return { ok: false, message: "That product no longer exists." };
+    await db.product.update({ where: { id }, data: { imageUrl: picture.imageUrl, imagePath: picture.imagePath, imageAlt: alt.data } });
+    refreshSite();
+    return { ok: true, id, previousPath: before.imagePath };
+  } catch (error) {
+    return failed(error, "setProductPicture") as Result<{ id: string; previousPath: string | null }>;
+  }
+}
+
+export async function clearProductPicture(id: string): Promise<Result<{ id: string; previousPath: string | null }>> {
+  await requireAdmin();
+  try {
+    const db = getDb();
+    const before = await db.product.findUnique({ where: { id }, select: { imagePath: true } });
+    if (!before) return { ok: false, message: "That product no longer exists." };
+    await db.product.update({ where: { id }, data: { imageUrl: null, imagePath: null, imageAlt: null } });
+    refreshSite();
+    return { ok: true, id, previousPath: before.imagePath };
+  } catch (error) {
+    return failed(error, "clearProductPicture") as Result<{ id: string; previousPath: string | null }>;
+  }
 }
 
 // ───────────────────────────── brands ─────────────────────────────

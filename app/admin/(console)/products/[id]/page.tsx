@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { saveProductAction } from "@/app/actions/admin-catalogue";
 import { ProductForm } from "@/components/admin/catalogue-forms";
+import { ProductPhoto } from "@/components/admin/product-photo";
 import { Backlink } from "@/components/admin/backlink";
 import { DatabaseRequired, PageHeader, StatusBadge } from "@/components/admin/ui";
 import { getCatalogueOptions, getProductForEdit } from "@/lib/admin/catalogue-admin";
 import { requireAdmin } from "@/lib/auth/guard";
 import { isDatabaseConfigured } from "@/lib/db/client";
+import { isStorageConfigured } from "@/lib/storage/supabase-storage";
 
 export const metadata: Metadata = { title: "Edit product" };
 
@@ -35,6 +37,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
     <div className="mx-auto grid max-w-3xl gap-6">
       <Backlink href="/admin/products">Products</Backlink>
       <PageHeader title={product.name} intro={<StatusBadge status={product.status} />} />
+      <ProductPhoto productId={product.id} productName={product.name} imageUrl={product.imageUrl} imageAlt={product.imageAlt} storageReady={isStorageConfigured()} />
       <ProductForm action={saveProductAction.bind(null, product.id)} values={values} categories={categories} brands={brands} canEditPrices={owner} submitLabel="Save changes" />
     </div>
   );
