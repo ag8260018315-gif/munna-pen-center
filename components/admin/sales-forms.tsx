@@ -151,7 +151,7 @@ export function StatusButton({ action, label, variant = "secondary" }: { action:
       <Button type="submit" variant={variant} disabled={pending}>
         {pending ? "Please wait…" : label}
       </Button>
-      {state.message && <Notice kind="error">{state.message}</Notice>}
+      {state.message && <Notice kind={state.ok ? "success" : "error"}>{state.message}</Notice>}
     </form>
   );
 }

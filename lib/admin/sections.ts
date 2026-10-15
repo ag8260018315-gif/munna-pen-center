@@ -21,6 +21,7 @@ export type AdminIcon =
   | "payments"
   | "follow-ups"
   | "ai"
+  | "users"
   | "settings";
 
 export interface AdminSection {
@@ -32,6 +33,8 @@ export interface AdminSection {
   /** Prisma models this section will read and write. */
   entities: readonly string[];
   phase: 2 | 3 | 4;
+  /** Only the owner sees and can open this section. */
+  ownerOnly?: boolean;
   /** True once the screens exist. */
   available: boolean;
   /** What must exist first. */
@@ -180,11 +183,22 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
     requires: ["Database", "WhatsApp Business API", "AI provider key", "Owner approval workflow"],
   },
   {
+    slug: "users",
+    available: true,
+    ownerOnly: true,
+    label: "Users",
+    icon: "users",
+    summary: "Add staff accounts, set or reset their passwords, deactivate or unlock them.",
+    entities: ["AdminUser"],
+    phase: 2,
+    requires: ["Database", "Admin sign-in"],
+  },
+  {
     slug: "settings",
     available: false,
     label: "Settings",
     icon: "settings",
-    summary: "Business details, GST information, invoice numbering, staff accounts and integrations.",
+    summary: "Business details, GST information, invoice numbering and integrations.",
     entities: ["AdminUser"],
     phase: 2,
     requires: ["Database", "Admin sign-in"],

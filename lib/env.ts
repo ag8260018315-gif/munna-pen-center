@@ -64,8 +64,9 @@ export const serverEnvSchema = z.object({
   AUTH_SECRET: optionalString,
 
   /**
-   * One-time key that unlocks /admin/setup so the owner can create the FIRST admin account. Only works while there are
-   * no admin users. Remove it from Vercel afterwards. Choose a long random value (`openssl rand -base64 24`).
+   * One-time key that unlocks /admin/setup so the owner can create the FIRST admin account (only while there are no admin
+   * users) and /admin/reset to recover a forgotten password (only if it is at least 16 characters). Remove it from Vercel
+   * afterwards. Choose a long random value (`openssl rand -base64 24`).
    */
   ADMIN_SETUP_TOKEN: optionalString,
 

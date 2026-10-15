@@ -16,7 +16,7 @@ const approvalActions = Object.entries(AGENT_ACTION_POLICY)
   .map(([action]) => action.toLowerCase().replace(/_/g, " "));
 
 export default async function AdminDashboardPage() {
-  await requireAdmin();
+  const session = await requireAdmin();
   const counts = isDatabaseConfigured() ? await getDashboardCounts() : null;
   const tiles = counts
     ? [
@@ -114,7 +114,7 @@ export default async function AdminDashboardPage() {
           Dashboard sections
         </h2>
         <ul className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {ADMIN_SECTIONS.filter((section) => section.slug !== "dashboard").map((section) => {
+          {ADMIN_SECTIONS.filter((section) => section.slug !== "dashboard" && (!section.ownerOnly || session.role === "OWNER")).map((section) => {
             const Icon = ADMIN_ICONS[section.icon];
             return (
               <li key={section.slug}>

@@ -16,11 +16,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <details className="mt-5 lg:hidden">
           <summary className="cursor-pointer rounded-lg bg-white/10 px-3 py-2.5 text-sm font-semibold text-white">Sections</summary>
           <div className="mt-2">
-            <AdminNav />
+            <AdminNav role={session.role} />
           </div>
         </details>
         <div className="mt-6 hidden lg:block">
-          <AdminNav />
+          <AdminNav role={session.role} />
         </div>
       </aside>
 
@@ -30,11 +30,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           {session.isPreview ? (
             <span className="rounded-full bg-accent-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-amber-900">Preview · not available in production</span>
           ) : (
+            <div className="flex items-center gap-2">
+              <Link href="/admin/account" className="rounded-lg px-3 py-1.5 text-sm font-semibold text-brand-800 hover:bg-brand-50">
+                My account
+              </Link>
             <form action={logoutAction}>
               <button type="submit" className="rounded-lg border border-line px-3 py-1.5 text-sm font-semibold text-brand-800 hover:bg-brand-50">
                 Sign out
               </button>
             </form>
+            </div>
           )}
         </header>
         <main className="px-4 py-8 sm:px-8">{children}</main>
