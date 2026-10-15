@@ -91,7 +91,7 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
   },
   {
     slug: "customers",
-    available: false,
+    available: true,
     label: "Customers",
     icon: "customers",
     summary: "Organisations the business has quoted or sold to: contacts, GSTIN, addresses and history.",
@@ -121,7 +121,7 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
   },
   {
     slug: "quotes",
-    available: false,
+    available: true,
     label: "Quotes",
     icon: "quotes",
     summary: "Draft, price, approve and send wholesale quotations. Prices are always entered or approved by the owner.",

@@ -306,7 +306,7 @@ export async function listEnquiries(params: { page?: number; status?: string }) 
 
 export async function getEnquiry(id: string) {
   await requireAdmin();
-  return getDb().enquiry.findUnique({ where: { id }, include: { lead: true, items: true } });
+  return getDb().enquiry.findUnique({ where: { id }, include: { lead: true, items: true, quotations: { orderBy: { createdAt: "desc" }, select: { id: true, number: true, status: true } } } });
 }
 
 // ───────────────────────────── dashboard ─────────────────────────────

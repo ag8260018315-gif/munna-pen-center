@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { createQuoteFromEnquiryAction } from "@/app/actions/admin-sales";
+import { CreateQuoteButton } from "@/components/admin/create-quote-button";
 import { Backlink } from "@/components/admin/backlink";
 import { DatabaseRequired, PageHeader, StatusBadge } from "@/components/admin/ui";
 import { getEnquiry } from "@/lib/admin/catalogue-admin";
@@ -29,6 +32,22 @@ export default async function EnquiryPage({ params }: { params: Promise<{ id: st
     <div className="mx-auto grid max-w-3xl gap-6">
       <Backlink href="/admin/enquiries">Enquiries</Backlink>
       <PageHeader title={enquiry.reference} intro={<StatusBadge status={enquiry.status} />} />
+      <section aria-labelledby="quote" className="rounded-xl border border-line bg-white p-5">
+        <h2 id="quote" className="text-lg font-extrabold">Quotation</h2>
+        {enquiry.quotations.length > 0 && (
+          <ul className="mt-2 grid gap-1">
+            {enquiry.quotations.map((q) => (
+              <li key={q.id}>
+                <Link className="font-semibold text-brand-800 underline" href={`/admin/quotes/${q.id}`}>{q.number}</Link> <StatusBadge status={q.status} />
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="mt-3">
+          <CreateQuoteButton action={createQuoteFromEnquiryAction.bind(null, enquiry.id)} label={enquiry.quotations.some((q) => q.status === "DRAFT") ? "Open the draft quotation" : "Create quotation"} />
+        </div>
+        <p className="mt-2 text-sm text-muted">Creates a draft with the customer and the items they asked for. No prices are filled in — you set them.</p>
+      </section>
       <dl className="grid gap-5 rounded-xl border border-line bg-white p-5 sm:grid-cols-2">
         <Row label="Received">{when(enquiry.createdAt)}</Row>
         <Row label="Source">{enquiry.source.replace(/_/g, " ").toLowerCase()}</Row>

@@ -58,3 +58,40 @@ export function buildEnquiryWhatsAppMessage(fields: EnquiryMessageFields, intro:
   add("Reference", fields.reference);
   return lines.join("\n");
 }
+
+/**
+ * A chat link to a CUSTOMER's number (not the business's). Opening it only pre-fills a message: a person still has to
+ * press send in WhatsApp, so nothing is ever sent to a customer from this system.
+ */
+export function buildCustomerWhatsAppUrl(customerPhoneE164: string, message: string): string {
+  return `https://wa.me/${toWhatsAppNumber(customerPhoneE164)}?text=${encodeURIComponent(wellFormed(message))}`;
+}
+
+export interface QuotationMessageFields {
+  contactName: string;
+  number: string;
+  lines: { description: string; quantity: number; unit: string; unitPrice: string; lineTotal: string }[];
+  subtotal: string;
+  taxTotal: string;
+  total: string;
+  validUntilText?: string | null;
+  terms?: string | null;
+  format: (rupees: string) => string;
+}
+
+/** Plain-text quotation for the owner to review and send. */
+export function buildQuotationMessage(q: QuotationMessageFields): string {
+  const rows = q.lines.slice(0, 25).map((l, i) => `${i + 1}. ${clip(l.description, 80)} - ${l.quantity} ${l.unit} x ${q.format(l.unitPrice)} = ${q.format(l.lineTotal)}`);
+  if (q.lines.length > 25) rows.push(`...and ${q.lines.length - 25} more items`);
+  return [
+    `Hello ${q.contactName}, quotation ${q.number} from Munna Pen Center:`,
+    "",
+    ...rows,
+    "",
+    `Subtotal: ${q.format(q.subtotal)} (prices exclude GST)`,
+    `GST: ${q.format(q.taxTotal)}`,
+    `Total: ${q.format(q.total)}`,
+    ...(q.validUntilText ? [`Valid until ${q.validUntilText}.`] : []),
+    ...(q.terms ? ["", clip(q.terms, 400)] : []),
+  ].join("\n");
+}
