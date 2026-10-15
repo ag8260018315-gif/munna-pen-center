@@ -54,7 +54,7 @@ Open **SQL Editor** (left menu) → **New query**. For each paste below: paste, 
    - Value: the string from step 2
    - Environments: tick **Production** and **Preview**
    - Turn **Sensitive** on, then **Save**.
-4. That is the only variable needed now. (`DIRECT_URL` is only for running migrations from a computer, which we are not doing. `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are for product-photo uploads, which are not built yet — do not add keys nothing uses.)
+4. That is the only variable needed now. (`DIRECT_URL` is only for running migrations from a computer, which we are not doing. `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are only for product pictures — add them when you are ready, following [`PHOTOS.md`](PHOTOS.md).)
 5. **Deployments** → open the newest deployment from `main` → `⋯` → **Redeploy**. A new variable only takes effect on a new deployment.
 
 ## D. Test it

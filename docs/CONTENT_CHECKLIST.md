@@ -35,7 +35,7 @@ The site never invents facts, so anything not supplied is either hidden or shown
 - [ ] **Google Business Profile** for Munna Pen Center, Dhanbad — the biggest single lever for “wholesale stationery Dhanbad”.
 - [ ] **Google Search Console** — verify the domain, submit `https://<your-domain>/sitemap.xml`.
 - [ ] **WhatsApp Business app** on 79790 25165 — set a greeting and away message now; the website’s WhatsApp buttons open a chat with this number.
-- [ ] Product **photographs** — real photos of what you stock beat any placeholder: `public/images/products/` + `imageUrl` / `imageAlt`.
+- [ ] Product **photographs** — real photos of what you stock beat any placeholder. Set up picture storage once ([`PHOTOS.md`](PHOTOS.md)), then upload each photo on the product's admin page.
 
 ## Later phases need from you
 

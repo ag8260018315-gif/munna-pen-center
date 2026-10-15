@@ -15,15 +15,18 @@ import type { CatalogueRepository } from "@/lib/repositories/types";
  * products, so both stores behave identically. A short snapshot cache keeps bots from hitting the database per request.
  */
 
-const SNAPSHOT_TTL_MS = 30_000;
+const SNAPSHOT_TTL_MS = 5_000;
 
 /**
  * Bumped by the admin whenever it changes the catalogue, so the instance that handled the change shows it at once.
  * (Other server instances pick it up within SNAPSHOT_TTL_MS.)
  */
-let generation = 0;
+// Kept on globalThis, not in a module variable: a route handler, a server action and a page can each get their own copy
+// of this module in the server bundle, and a counter bumped in one copy would never reach the others.
+const globalForGeneration = globalThis as unknown as { __munnaCatalogueGeneration?: number };
+const currentGeneration = () => globalForGeneration.__munnaCatalogueGeneration ?? 0;
 export function invalidateCatalogueSnapshot() {
-  generation++;
+  globalForGeneration.__munnaCatalogueGeneration = currentGeneration() + 1;
 }
 
 interface Snapshot {
@@ -36,7 +39,7 @@ export class PrismaCatalogueRepository implements CatalogueRepository {
   private snapshot: Promise<Snapshot> | undefined;
 
   private async load(): Promise<Snapshot> {
-    const startedAtGeneration = generation; // a change made while loading must not be cached as current
+    const startedAtGeneration = currentGeneration(); // a change made while loading must not be cached as current
     const db = getDb();
     const [categories, brands, products] = await Promise.all([
       db.category.findMany({
@@ -104,7 +107,7 @@ export class PrismaCatalogueRepository implements CatalogueRepository {
   private async current(): Promise<StaticCatalogueRepository> {
     if (this.snapshot) {
       const existing = await this.snapshot.catch(() => undefined);
-      if (existing && existing.generation === generation && Date.now() - existing.at < SNAPSHOT_TTL_MS) return existing.repo;
+      if (existing && existing.generation === currentGeneration() && Date.now() - existing.at < SNAPSHOT_TTL_MS) return existing.repo;
     }
     const fresh = this.load();
     this.snapshot = fresh;

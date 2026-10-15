@@ -140,7 +140,7 @@ Full guide: [`ADMIN.md`](ADMIN.md). In short:
 - **Layers:** `proxy.ts` is a cheap first filter (no cookie → sign-in page; no database in production → 404). `requireAdmin()` / `requireOwner()` in `lib/auth/guard.ts` are the authority, and **every admin data function and server action calls them itself** (a test checks this) — layouts do not re-run on client navigation and server actions can be POSTed directly.
 - **Routes:** `app/admin/(auth)` (login, setup) and `app/admin/(console)` (dashboard, products, brands, categories, inventory, enquiries; the other sections of `lib/admin/sections.ts` are still placeholders marked "Soon"). Admin responses are `noindex` and `no-store`.
 - **Data:** `lib/admin/catalogue-admin.ts` is the admin repository for the catalogue. Forms are validated by `lib/validation/admin-catalogue.ts`; a blank box is stored as NULL, never as a default. Prices, GST and HSN can be changed by the OWNER only. Nothing is deleted — products, brands and categories are deactivated, so quotations and invoices that mention them stay valid.
-- Admin writes call `invalidateCatalogueSnapshot()` and `revalidatePath("/", "layout")`, so the public site shows a change at once on the instance that handled it (other instances within 30 seconds).
+- Admin writes call `invalidateCatalogueSnapshot()` and `revalidatePath("/", "layout")`, so the public site shows a change at once on the instance that handled it (other instances within 5 seconds; a statically cached product page is rebuilt on its next visit, and in rare timing can keep the old content for at most its 5-minute cache).
 
 ## 5. Environment variables
 
