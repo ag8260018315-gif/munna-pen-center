@@ -10,6 +10,7 @@ Address: `https://<your-site>/admin`. It only works once the database is connect
 | Products | Search and filter; add; edit; **Deactivate / Publish**. Fields: name, category, brand, descriptions, SKU, unit, pack size, minimum order quantity, stock, purchase / wholesale / retail price, GST %, HSN, tags, status, featured |
 | Brands | Add, edit, deactivate; choose whether a brand is shown on the website |
 | Categories | Add, edit, deactivate; summary, description, order |
+| Product pictures | On a product's page: upload, replace or remove one picture (needs the one-time setup in [`PHOTOS.md`](PHOTOS.md)) |
 | Inventory | Type a stock number per product and press Save. Empty = "not tracked", 0 = out of stock |
 | Enquiries | Read every website enquiry (newest first), filter by status, call or e-mail the sender, and **Create quotation** from it |
 | Customers | Organisations you quote. Created automatically from an enquiry, or added by hand (contact, phone, GSTIN, billing address) |
@@ -37,7 +38,7 @@ The quotation print view shows "GST Registered" and your address and phone, like
 - **The website never shows prices, stock, SKU, GST or HSN.** They are for you only.
 - **Prices, GST and HSN can be changed by the OWNER only.** A staff account can add and edit products and update stock.
 - **Nothing is deleted.** Deactivating hides a product from the website but keeps it for old quotations and invoices.
-- **Only Active products appear on the website.** Draft = being prepared; Inactive = hidden. The site shows a change at once (other servers within about 30 seconds).
+- **Only Active products appear on the website.** Draft = being prepared; Inactive = hidden. The site shows a change within seconds; in rare timing a single product page can lag for up to 5 minutes.
 - Brands and categories are separate things. Cello Tape and Adhesive Tape are categories, not brands.
 
 ## Creating the first owner account (one time)
@@ -60,6 +61,6 @@ Never send the setup key or the password to anyone — not even to me.
 
 - **No password reset or second staff account screen yet.** If you forget the password, the account must be fixed in the Supabase SQL Editor (ask me for the exact steps). Adding staff accounts is the next admin task.
 - **No two-factor sign-in yet.** Use a strong, unique password.
-- **Product photos** cannot be uploaded yet (Supabase Storage is not wired up).
+- **Product pictures** need a one-time Supabase Storage setup: see [`PHOTOS.md`](PHOTOS.md).
 - The login lock is per account, not per internet address; add rate limiting at Vercel before launch if the admin address becomes widely known.
 - The app still connects to the database as the owner role (see `MIGRATION_0001_REVIEW.md`, risk 1): create a least-privilege database user before launch.

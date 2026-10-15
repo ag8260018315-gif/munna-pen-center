@@ -11,6 +11,22 @@ if (siteUrlProblem) {
   console.warn(`\n⚠  ${siteUrlProblem}\n   Set it to your public domain (e.g. https://www.yourdomain.in) before building for production.\n`);
 }
 
+/**
+ * Product pictures are stored in Supabase Storage (a public bucket) and shown through next/image. Only THAT project's
+ * public-object path is allowed, read from SUPABASE_URL at build time (quotes/spaces pasted into a dashboard are
+ * tolerated; anything unusable simply allows nothing).
+ */
+function supabaseImagePatterns() {
+  const raw = (process.env.SUPABASE_URL ?? "").trim().replace(/^(["'`])(.*)\1$/, "$2").trim();
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "https:") return [];
+    return [{ protocol: "https" as const, hostname: url.hostname, pathname: "/storage/v1/object/public/**" }];
+  } catch {
+    return [];
+  }
+}
+
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
@@ -31,8 +47,8 @@ const nextConfig: NextConfig = {
   },
   images: {
     formats: ["image/avif", "image/webp"],
-    // Product photos are served from /public. If images move to a CDN or object
-    // storage later, allow that host here with `remotePatterns`.
+    // Product photos uploaded in the admin live in Supabase Storage; older ones may sit in /public.
+    remotePatterns: supabaseImagePatterns(),
   },
   async headers() {
     return [

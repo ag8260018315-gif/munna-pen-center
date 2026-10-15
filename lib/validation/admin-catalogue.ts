@@ -99,6 +99,9 @@ export const categorySchema = z.object({
 });
 export type CategoryInput = z.infer<typeof categorySchema>;
 
+/** Describes the picture for people who can not see it (and for search engines). Required: no picture without a description. */
+export const imageAltSchema = z.string().trim().min(3, "Describe the picture in a few words, e.g. “Blue ball pen, box of 10”").max(200, "At most 200 characters");
+
 export const stockSchema = z.object({ stockQuantity: optInt(0, "Stock") });
 
 /** Fields as plain strings from a FormData — files and repeated keys are ignored. */

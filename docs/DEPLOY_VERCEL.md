@@ -14,7 +14,7 @@ Mark everything except `NEXT_PUBLIC_SITE_URL` as **Sensitive**. Paste only the v
 | `BUSINESS_GSTIN` | not needed yet | The 15-character GSTIN, for invoices later. **The website never shows it** (it says only "GST Registered"). If set but mistyped, a warning is logged — it never breaks the build. You can leave it out for now |
 | `DATABASE_URL` | once Supabase exists | Supabase **pooled** connection string |
 | `DIRECT_URL` | once Supabase exists | Supabase **direct** connection string (migrations only) |
-| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | once Supabase exists | Server-side only; the service-role key must never be shared or committed |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (+ optional `SUPABASE_STORAGE_BUCKET`) | for product pictures | Server-side only; the service-role key must never be shared or committed. Steps in [`PHOTOS.md`](PHOTOS.md) |
 | `ADMIN_SETUP_TOKEN` | once, to create the first admin | A long random key that unlocks `/admin/setup`. **Delete it after the owner account is created.** See [`ADMIN.md`](ADMIN.md) |
 | `CATALOGUE_SOURCE` | later | Leave unset (built-in catalogue) until real products are loaded; then `database` |
 

@@ -193,6 +193,26 @@ describe.skipIf(!url)("admin catalogue on a real database", () => {
     expect((await admin.listProducts({ q: "'; DROP TABLE \"Product\"; --" })).items).toEqual([]);
   });
 
+  it("records a product picture with its description, returns the old file path on replace, and clears it", async () => {
+    const made = await admin.createProduct(form());
+    if (!made.ok) throw new Error("setup");
+    const first = await admin.setProductPicture(made.id, { imageUrl: "https://x.supabase.co/storage/v1/object/public/product-images/products/a/0123456789abcdef.webp", imagePath: "products/a/0123456789abcdef.webp", imageAlt: "Blue pen, box of 10" });
+    expect(first).toMatchObject({ ok: true, previousPath: null });
+    const second = await admin.setProductPicture(made.id, { imageUrl: "https://x.supabase.co/y.webp", imagePath: "products/a/fedcba9876543210.webp", imageAlt: "Blue pen" });
+    expect(second).toMatchObject({ ok: true, previousPath: "products/a/0123456789abcdef.webp" });
+    expect(await admin.getProductPicture(made.id)).toMatchObject({ imageAlt: "Blue pen", imagePath: "products/a/fedcba9876543210.webp" });
+    expect(revalidate).toHaveBeenCalledWith("/", "layout");
+    expect(await admin.setProductPicture(made.id, { imageUrl: "u", imagePath: "p", imageAlt: " x " })).toMatchObject({ ok: false, fieldErrors: { imageAlt: expect.any(String) } });
+    expect(await admin.clearProductPicture(made.id)).toMatchObject({ ok: true, previousPath: "products/a/fedcba9876543210.webp" });
+    expect(await db.product.findUniqueOrThrow({ where: { id: made.id } })).toMatchObject({ imageUrl: null, imagePath: null, imageAlt: null });
+    expect(await admin.setProductPicture("missing", { imageUrl: "u", imagePath: "p", imageAlt: "Valid description" })).toMatchObject({ ok: false });
+    expect(await admin.clearProductPicture("missing")).toMatchObject({ ok: false });
+    expect(await admin.getProductPicture("missing")).toBeNull();
+    signedIn = false;
+    await expect(admin.setProductPicture(made.id, { imageUrl: "u", imagePath: "p", imageAlt: "Valid description" })).rejects.toThrow("NEXT_REDIRECT");
+    await expect(admin.clearProductPicture(made.id)).rejects.toThrow("NEXT_REDIRECT");
+  });
+
   it("brands and categories: create, edit, deactivate, and duplicate handling", async () => {
     const b = await admin.saveBrand(null, { name: "ITest A Brand Two", isListedPublicly: "on", isActive: "on" });
     expect(b.ok).toBe(true);
