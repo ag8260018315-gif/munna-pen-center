@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { amountInWords, computeInvoiceTaxes, GST_STATES, integerInWords, invoiceNumber, MAX_INVOICE_SEQUENCE, stateByCode, stateByName, stateCodeFromGstin, taxModeFor, UTGST_CODES } from "@/lib/domain/gst";
+import { amountInWords, computeInvoiceTaxes, GST_STATES, integerInWords, invoiceNumber, MAX_INVOICE_SEQUENCE, placeOfSupplyCode, placeOfSupplyLabel, stateByCode, stateByName, stateCodeFromGstin, taxModeFor, UTGST_CODES } from "@/lib/domain/gst";
 
 describe("GST states", () => {
   it("has each code once, two digits, and 36 entries (25 retired when Daman and Diu merged into 26)", () => {
@@ -134,5 +134,16 @@ describe("invoice number", () => {
   it("refuses an invalid year or a sequence outside 1..999999 instead of making a number that breaks the 16-character rule", () => {
     for (const bad of [0, -1, 1.5, MAX_INVOICE_SEQUENCE + 1]) expect(() => invoiceNumber("2026-27", bad)).toThrow();
     for (const year of ["26-27", "2026/27", "", "abcd-ef"]) expect(() => invoiceNumber(year, 1)).toThrow();
+  });
+});
+
+describe("place of supply label", () => {
+  it("is written 'code-State' and read back by its code", () => {
+    expect(placeOfSupplyLabel("20")).toBe("20-Jharkhand");
+    expect(placeOfSupplyLabel("99")).toBeNull();
+    expect(placeOfSupplyCode("20-Jharkhand")).toBe("20");
+    expect(placeOfSupplyCode("99-Nowhere")).toBeNull();
+    expect(placeOfSupplyCode("Jharkhand")).toBeNull();
+    expect(placeOfSupplyCode(null)).toBeNull();
   });
 });

@@ -1,6 +1,7 @@
 import "server-only";
 import { getServerEnv } from "@/lib/env";
 import { normaliseGstin } from "@/lib/gstin";
+import { buildSupplier, type InvoiceSupplier } from "@/lib/domain/supplier";
 
 /**
  * The business's GSTIN, from the server-only BUSINESS_GSTIN environment variable — never from source code.
@@ -27,4 +28,19 @@ export function getBusinessGstin(): string | null {
     console.warn(`[config] ${result.problem}`);
   }
   return result.gstin;
+}
+
+/**
+ * Who is selling, as printed on a tax invoice: GSTIN (from the environment), legal name (BUSINESS_LEGAL_NAME if set, else
+ * the trading name) and the address the owner supplied. `gstin` is null when it has not been set up, and invoices can not
+ * be issued until it is.
+ */
+export function getInvoiceSupplier(): InvoiceSupplier {
+  let legalName: string | undefined;
+  try {
+    legalName = getServerEnv().BUSINESS_LEGAL_NAME;
+  } catch {
+    legalName = undefined;
+  }
+  return buildSupplier({ gstin: getBusinessGstin(), legalName });
 }

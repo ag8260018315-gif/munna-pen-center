@@ -104,6 +104,18 @@ export function stateByName(name: string | null | undefined) {
   return alias ? stateByCode(alias) : null;
 }
 
+/** How a place of supply is written on an invoice: "20-Jharkhand". */
+export function placeOfSupplyLabel(code: string): string | null {
+  const state = stateByCode(code);
+  return state ? `${state.code}-${state.name}` : null;
+}
+
+/** The state code at the front of a stored place-of-supply label ("20-Jharkhand" → "20"), or null if it is not a known state. */
+export function placeOfSupplyCode(label: string | null | undefined): string | null {
+  const code = /^(\d{2})-/.exec(label ?? "")?.[1] ?? null;
+  return code && stateByCode(code) ? code : null;
+}
+
 // ───────────────────────────── tax split ─────────────────────────────
 
 export type TaxMode = "INTRA_STATE" | "INTER_STATE";

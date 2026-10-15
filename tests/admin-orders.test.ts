@@ -30,7 +30,8 @@ describe.skipIf(!url)("orders on a real database", () => {
     await t.cleanup();
     await t.db.$disconnect();
   });
-  beforeEach(() => {
+  beforeEach(async () => {
+    await t.resetData();
     t.state.role = "OWNER";
     t.state.signedIn = true;
   });

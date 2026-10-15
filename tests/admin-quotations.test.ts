@@ -178,6 +178,8 @@ describe.skipIf(!url)("quotations on a real database", () => {
     expect(row.validUntil?.toISOString()).toBe("2030-01-31T18:29:59.000Z");
     expect(row).toMatchObject({ terms: "Payment as agreed", notes: null });
     expect(await q.updateQuotationHeader(id, { validUntil: "31/01/2030" })).toMatchObject({ ok: false, fieldErrors: { validUntil: expect.any(String) } });
+    // A day that does not exist is refused, not silently moved to the next month.
+    expect(await q.updateQuotationHeader(id, { validUntil: "2030-02-31" })).toMatchObject({ ok: false, fieldErrors: { validUntil: expect.any(String) } });
   });
 
   it("rejects bad lines without writing", async () => {

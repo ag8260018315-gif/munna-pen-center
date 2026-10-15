@@ -45,13 +45,22 @@ export const customerSchema = z.object({
 });
 export type CustomerInput = z.infer<typeof customerSchema>;
 
+/** True for a real calendar day. `Date.parse` alone is not enough: it rolls "2026-02-31" over to 3 March instead of rejecting it. */
+export function isCalendarDate(value: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!m) return false;
+  const [year, month, day] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+
 /** A date typed as YYYY-MM-DD (from <input type="date">), valid until the END of that day in India. */
 const optDate = z.preprocess(
   blankToNull,
   z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a date")
-    .refine((v) => !Number.isNaN(Date.parse(`${v}T00:00:00+05:30`)), "Choose a valid date")
+    .refine(isCalendarDate, "Choose a valid date")
     .nullable(),
 );
 
@@ -135,12 +144,12 @@ export const paymentSchema = z.object({
     .string({ error: "Choose the date" })
     .trim()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Choose the date the money arrived")
-    .refine((v) => !Number.isNaN(Date.parse(`${v}T00:00:00+05:30`)), "Choose a valid date"),
+    .refine(isCalendarDate, "Choose a valid date"),
   notes: optText(500),
 });
 export type PaymentInput = z.infer<typeof paymentSchema>;
 
-export const paymentReversalSchema = z.object({
+export const reasonSchema = z.object({
   reason: z.string().trim().min(3, "Say why (at least 3 characters)").max(300),
 });
 

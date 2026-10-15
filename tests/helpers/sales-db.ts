@@ -14,10 +14,11 @@ export interface SalesTestState {
   signedIn: boolean;
   userId: string;
   businessGstin: string | null;
+  legalName: string | null;
 }
 
 export async function setupSalesDb(url: string) {
-  const state: SalesTestState = { role: "OWNER", signedIn: true, userId: "u", businessGstin: TEST_SUPPLIER_GSTIN };
+  const state: SalesTestState = { role: "OWNER", signedIn: true, userId: "u", businessGstin: TEST_SUPPLIER_GSTIN, legalName: null };
   vi.stubEnv("DATABASE_URL", url);
   vi.resetModules();
   vi.doMock("next/cache", () => ({ revalidatePath: vi.fn() }));
@@ -33,13 +34,19 @@ export async function setupSalesDb(url: string) {
       return session();
     },
   }));
-  vi.doMock("@/lib/business", () => ({ getBusinessGstin: () => state.businessGstin }));
+  const { buildSupplier } = await import("@/lib/domain/supplier");
+  vi.doMock("@/lib/business", () => ({
+    getBusinessGstin: () => state.businessGstin,
+    getInvoiceSupplier: () => buildSupplier({ gstin: state.businessGstin, legalName: state.legalName }),
+  }));
 
   const db = (await import("@/lib/db/client")).getDb();
   const quotes = await import("@/lib/admin/quotation-admin");
   const orders = await import("@/lib/admin/order-admin");
+  const invoices = await import("@/lib/admin/invoice-admin");
 
-  async function cleanup() {
+  /** Removes every row these tests created, except the test user. Run before each test so numbering starts from 1 again. */
+  async function resetData() {
     // Orders, invoices and payments can not be deleted by design (database triggers), so the tests' own rows are removed
     // inside one transaction that switches the triggers off. That is only possible on a throwaway database.
     await db.$transaction(async (tx) => {
@@ -54,8 +61,11 @@ export async function setupSalesDb(url: string) {
       await tx.$executeRawUnsafe(`DELETE FROM "Quotation" WHERE "customerId" IN ${customers}`);
       await tx.$executeRawUnsafe(`DELETE FROM "Customer" WHERE "organizationName" LIKE '${TEST_ORG}%'`);
       await tx.$executeRawUnsafe(`DELETE FROM "NumberSequence" WHERE "scope" IN ('ORD', 'INV')`);
-      await tx.$executeRawUnsafe(`DELETE FROM "AdminUser" WHERE "email" LIKE 'stest-%@example.test'`);
     });
+  }
+  async function cleanup() {
+    await resetData();
+    await db.adminUser.deleteMany({ where: { email: { startsWith: "stest-" } } });
   }
 
   async function newCustomer(extra: Record<string, string | null> = {}) {
@@ -107,5 +117,5 @@ export async function setupSalesDb(url: string) {
   const user = await db.adminUser.create({ data: { email: "stest-owner@example.test", name: "STest Owner", role: "OWNER" } });
   state.userId = user.id;
 
-  return { state, db, quotes, orders, cleanup, newCustomer, acceptedQuote, confirmedOrder };
+  return { state, db, quotes, orders, invoices, cleanup, resetData, newCustomer, acceptedQuote, confirmedOrder };
 }
