@@ -1,7 +1,5 @@
-import { NextResponse } from "next/server";
 import { clearProductPicture, getProductPicture, setProductPicture } from "@/lib/admin/catalogue-admin";
-import { getAdminSession } from "@/lib/auth/guard";
-import { isDatabaseConfigured } from "@/lib/db/client";
+import { adminApiGate, json } from "@/lib/auth/api-gate";
 import { MAX_UPLOAD_BYTES, processProductImage } from "@/lib/storage/process-image";
 import { deleteObject, getStorageConfig, newObjectPath, ownObjectPath, publicUrlFor, uploadObject } from "@/lib/storage/supabase-storage";
 import { imageAltSchema } from "@/lib/validation/admin-catalogue";
@@ -18,28 +16,8 @@ import { imageAltSchema } from "@/lib/validation/admin-catalogue";
  */
 export const runtime = "nodejs";
 
-const json = (body: Record<string, unknown>, status = 200) => NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } });
-
-function sameOrigin(request: Request): boolean {
-  const origin = request.headers.get("origin");
-  if (!origin) return false; // browsers always send Origin on a cross-origin or form POST; refuse when it is missing
-  try {
-    const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
-    return new URL(origin).host === host;
-  } catch {
-    return false;
-  }
-}
-
-async function gate(request: Request) {
-  if (!sameOrigin(request)) return json({ error: "Request refused." }, 403);
-  if (!isDatabaseConfigured()) return json({ error: "The database is not connected." }, 503);
-  if (!(await getAdminSession())) return json({ error: "Please sign in again." }, 401);
-  return null;
-}
-
 export async function POST(request: Request) {
-  const refused = await gate(request);
+  const refused = await adminApiGate(request);
   if (refused) return refused;
 
   const config = getStorageConfig();
@@ -88,7 +66,7 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const refused = await gate(request);
+  const refused = await adminApiGate(request);
   if (refused) return refused;
   const productId = new URL(request.url).searchParams.get("productId") ?? "";
   if (!productId || productId.length > 60) return json({ error: "Missing product." }, 400);
