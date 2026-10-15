@@ -2,6 +2,7 @@ import "server-only";
 import { revalidatePath } from "next/cache";
 import { requireAdmin, requireOwner } from "@/lib/auth/guard";
 import { getDb } from "@/lib/db/client";
+import { allocateSequence } from "@/lib/db/sequence";
 import { computeQuote, financialYearOf, quotationNumber } from "@/lib/domain/quote-math";
 import { fieldErrors } from "@/lib/validation/admin-catalogue";
 import { lineSchema, quotationHeaderSchema, QUOTE_STATUS_ACTIONS, type QuoteStatusAction } from "@/lib/validation/admin-sales";
@@ -40,21 +41,7 @@ const refresh = (id?: string) => {
 /** Gap-free number: the counter row is incremented inside the same transaction as the quotation. */
 async function nextQuotationNumber(tx: Tx, now = new Date()): Promise<string> {
   const financialYear = financialYearOf(now);
-  for (let attempt = 0; ; attempt++) {
-    try {
-      const row = await tx.numberSequence.upsert({
-        where: { scope_financialYear: { scope: "QT", financialYear } },
-        create: { scope: "QT", financialYear, lastValue: 1 },
-        update: { lastValue: { increment: 1 } },
-        select: { lastValue: true },
-      });
-      return quotationNumber(financialYear, row.lastValue);
-    } catch (error) {
-      // Two first-of-the-year requests can race on the insert: the loser simply retries as an update.
-      if ((error as { code?: string } | null)?.code === "P2002" && attempt < 3) continue;
-      throw error;
-    }
-  }
+  return quotationNumber(financialYear, await allocateSequence(tx, "QT", financialYear));
 }
 
 // ───────────────────────────── totals ─────────────────────────────
