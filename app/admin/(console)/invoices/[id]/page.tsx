@@ -128,6 +128,7 @@ export default async function InvoicePage({ params, searchParams }: { params: Pr
             <p>
               <strong>Delivery address on the order:</strong> {inv.deliveryAddress || <span className="text-red-700">none written</span>}
             </p>
+            {!writtenState && inv.deliveryAddress && <Notice kind="info">The delivery address on the order has no state, so no place of supply was suggested. Choose it above.</Notice>}
             {writtenState && !inv.deliveryState && <Notice kind="info">The delivery state on the order (“{writtenState}”) is not a state this system recognises, so no place of supply was suggested. Choose it above.</Notice>}
             {inv.deliveryState && posCode && inv.deliveryState.code !== posCode && <Notice kind="info">The order is being delivered to {inv.deliveryState.name}, but the place of supply above is {stateByCode(posCode)?.name}. That is right only if the goods really go to {stateByCode(posCode)?.name}.</Notice>}
           </div>

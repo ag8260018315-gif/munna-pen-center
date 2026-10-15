@@ -16,7 +16,12 @@ export function splitNotes(notes: string | null | undefined): { text: string; lo
 export function cleanUserNotes(text: string | null | undefined): string {
   return (text ?? "")
     .split("\n")
-    .map((line) => (line.startsWith(LOG) ? line.slice(LOG.length) : line))
+    .map((line) => {
+      // Strip the marker however many times it is repeated ("[log] [log] …"): one pass would leave a fresh marker behind.
+      let clean = line;
+      while (clean.startsWith(LOG)) clean = clean.slice(LOG.length);
+      return clean;
+    })
     .join("\n")
     .trim();
 }

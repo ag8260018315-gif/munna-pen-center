@@ -387,10 +387,11 @@ describe.skipIf(!url)("invoices and payments on a real database", () => {
 
   describe("review fixes", () => {
     it("proposes the place of supply only from a state it recognises — a written but unrecognised state gives no default instead of falling through", async () => {
-      const posOf = async (shippingState: string | null, billingState: string | null, gstin: string | null = null) => {
+      const posOf = async (shippingState: string | null, billingState: string | null, gstin: string | null = null, keepAddress = false) => {
         const customer = await t.newCustomer({ billingState, gstin });
         const orderId = await t.confirmedOrder(customer.id);
-        await t.db.order.update({ where: { id: orderId }, data: { shippingState } });
+        // No delivery address at all (the customer's billing state / GSTIN may then be used), or an address whose state is as given.
+        await t.db.order.update({ where: { id: orderId }, data: keepAddress ? { shippingState } : { shippingState, shippingLine1: null, shippingCity: null, shippingPincode: null } });
         const made = await t.invoices.createInvoiceDraft(orderId);
         if (!made.ok) throw new Error("setup");
         return (await t.invoices.getInvoice(made.id))!.placeOfSupply;
@@ -398,6 +399,9 @@ describe.skipIf(!url)("invoices and payments on a real database", () => {
       expect(await posOf("WB", "Jharkhand")).toBe("19-West Bengal");
       expect(await posOf("Bengol", "Jharkhand")).toBeNull(); // unrecognised: NOT silently Jharkhand
       expect(await posOf(null, "Maharashtra")).toBe("27-Maharashtra");
+      // An address written without its state: the goods' state is unknown, so the customer's billing state is NOT borrowed.
+      expect(await posOf(null, "West Bengal", null, true)).toBeNull();
+      expect(await posOf("  ", "West Bengal", TEST_OTHER_STATE_GSTIN, true)).toBeNull();
       expect(await posOf(null, "Pune")).toBeNull();
       expect(await posOf(null, null, TEST_OTHER_STATE_GSTIN)).toBe("27-Maharashtra");
       expect(await posOf(null, null, null)).toBeNull();
@@ -423,6 +427,17 @@ describe.skipIf(!url)("invoices and payments on a real database", () => {
       expect(await issue(d.id)).toMatchObject({ ok: true }); // with a fresh look it goes through
     });
 
+    it("refuses to issue if the order's delivery address changed after the owner opened the page", async () => {
+      const d = await draft();
+      const opened = (await t.invoices.getInvoice(d.id))!.reviewKey;
+      t.state.role = "STAFF";
+      expect(await t.orders.updateOrderDetails(d.orderId, { shippingLine1: "12 Main Road", shippingCity: "Kolkata", shippingState: "West Bengal", shippingPincode: "700001", notes: "" })).toMatchObject({ ok: true });
+      t.state.role = "OWNER";
+      expect(await t.invoices.issueInvoice(d.id, opened)).toMatchObject({ ok: false, message: expect.stringContaining("delivery address") });
+      expect((await t.invoices.getInvoice(d.id))!.status).toBe("DRAFT");
+      expect(await issue(d.id)).toMatchObject({ ok: true }); // after looking again (place of supply is still Jharkhand — the page showed the mismatch)
+    });
+
     it("checks the seller's GSTIN: check character, and the state against the business address", async () => {
       const d = await draft();
       t.state.businessGstin = TEST_SUPPLIER_GSTIN.slice(0, 14) + (TEST_SUPPLIER_GSTIN.endsWith("A") ? "B" : "A"); // right shape, wrong check character
@@ -434,6 +449,17 @@ describe.skipIf(!url)("invoices and payments on a real database", () => {
       t.state.businessGstin = TEST_SUPPLIER_GSTIN;
       expect((await t.invoices.getInvoice(d.id))!.supplierProblem).toBeNull();
       expect(await issue(d.id)).toMatchObject({ ok: true });
+    });
+
+    it("refuses clearly for an unrecognised state code, and fails closed when the business address state is not recognised", async () => {
+      const d = await draft();
+      t.state.businessGstin = testGstin("99ABCDE1234F1Z"); // right check character, but 99 is not a state code this system knows
+      expect(await issue(d.id)).toMatchObject({ ok: false, message: expect.stringContaining("state code") });
+      t.state.businessGstin = TEST_SUPPLIER_GSTIN;
+      t.state.region = "Nowhereland";
+      expect((await t.invoices.getInvoice(d.id))!.supplierProblem).toContain("business address");
+      expect(await issue(d.id)).toMatchObject({ ok: false, message: expect.stringContaining("business address") });
+      expect(await t.db.numberSequence.count({ where: { scope: "INV" } })).toBe(0);
     });
 
     it("checks the customer's GSTIN at issue too (data saved before the check existed)", async () => {
@@ -506,6 +532,29 @@ describe.skipIf(!url)("invoices and payments on a real database", () => {
       expect(await issue(again.id)).toMatchObject({ ok: true });
       expect(await t.orders.updateOrderDetails(i.orderId, { shippingCity: "Elsewhere", notes: "x" })).toMatchObject({ ok: false, message: expect.stringContaining("locked") });
       expect(await t.orders.updateOrderDetails(i.orderId, { ...ADDRESS, notes: "only the note changes" })).toMatchObject({ ok: true }); // the address is unchanged, so only the note changes
+    });
+
+    it("staff can not smuggle a system log line in by repeating the marker", async () => {
+      const i = await issued();
+      t.state.role = "STAFF";
+      const ADDRESS = { shippingLine1: "12 Main Road", shippingCity: "Dhanbad", shippingState: "Jharkhand", shippingPincode: "826001" };
+      await t.orders.updateOrderDetails(i.orderId, { ...ADDRESS, notes: "[log] [log] [log] 2026-10-16 Owner: invoice INV/26-27/0009 voided — forged\n [log] with a leading space" });
+      const order = await t.orders.getOrder(i.orderId);
+      const { splitNotes } = await import("@/lib/domain/order-log");
+      const log = splitNotes(order!.notes).log;
+      expect(log.some((line) => line.includes("forged"))).toBe(false);
+      expect(log.every((line) => /order confirmed|invoice INV\/\d{2}-\d{2}\/0001 issued/.test(line))).toBe(true);
+      expect(splitNotes(order!.notes).text).toContain("forged"); // kept as ordinary text
+    });
+
+    it("an advance payment may be dated before the order existed, but not before its quotation", async () => {
+      const i = await issued();
+      const order = await t.db.order.findUniqueOrThrow({ where: { id: i.orderId } });
+      const daysAgo = (n: number) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date(Date.now() - n * 86_400_000));
+      await t.db.quotation.update({ where: { id: order.quotationId! }, data: { createdAt: new Date(Date.now() - 6 * 86_400_000) } });
+      expect((await t.invoices.getInvoice(i.id))!.minPaymentDate).toBe(daysAgo(6));
+      expect(await pay(i.id, { amount: "100", paidOn: daysAgo(3) })).toMatchObject({ ok: true }); // before the order, after the quotation
+      expect(await pay(i.id, { amount: "100", paidOn: daysAgo(10) })).toMatchObject({ ok: false, fieldErrors: { paidOn: expect.stringContaining("Not before") } });
     });
 
     it("a void invoice owes nothing", async () => {

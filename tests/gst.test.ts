@@ -150,7 +150,8 @@ describe("state names people type", () => {
     for (const [text, code] of [["WB", "19"], ["wb", "19"], ["UP", "09"], ["Tamilnadu", "33"], ["Chhatisgarh", "22"], ["Jharkand", "20"], ["Telengana", "36"], ["JH", "20"], ["MP", "23"], ["Orissa", "21"]] as const) {
       expect(stateByName(text)?.code, text).toBe(code);
     }
-    for (const text of ["Bengal", "Pune", "India", "X", "", "  "]) expect(stateByName(text), text).toBeNull();
+    // Ambiguous or word-like abbreviations are left for the owner to choose, never guessed.
+    for (const text of ["Bengal", "Pune", "India", "X", "", "  ", "CH", "UK", "AS", "AN", "AR", "LA"]) expect(stateByName(text), text).toBeNull();
   });
 });
 

@@ -86,9 +86,12 @@ async function lockOrder(tx: Tx, id: string) {
 /** Why the seller's details can not go on an invoice, or null if they can. Checked at issue and shown on the draft. */
 function supplierProblem(supplier: InvoiceSupplier): string | null {
   if (!supplier.gstin) return "The business GSTIN has not been set up on the server, so no invoice can be issued yet. See the invoicing section of docs/ADMIN.md.";
+  if (!isGstinCheckCharacterValid(supplier.gstin)) return "The business GSTIN set on the server does not pass its check (its last character does not match the rest), so it was probably mistyped. Correct it, redeploy and try again.";
   const state = stateCodeFromGstin(supplier.gstin);
-  if (!isGstinCheckCharacterValid(supplier.gstin) || !state) return "The business GSTIN set on the server does not pass its check (its last character does not match the rest), so it was probably mistyped. Correct it, redeploy and try again.";
-  if (supplier.homeStateCode && supplier.homeStateCode !== state) {
+  if (!state) return "The business GSTIN starts with a state code this system does not recognise. Check the GSTIN setting.";
+  // Fails closed: if the state in the business address can not be recognised, the GSTIN can not be checked against it.
+  if (!supplier.homeStateCode) return "The state in the business address is not one this system recognises, so the GSTIN can not be checked against it. Check the address in the site settings.";
+  if (supplier.homeStateCode !== state) {
     return `The business GSTIN is registered in ${stateByCode(state)?.name}, but the business address printed on invoices is in ${stateByCode(supplier.homeStateCode)?.name}. Check the GSTIN setting.`;
   }
   return null;
@@ -96,10 +99,11 @@ function supplierProblem(supplier: InvoiceSupplier): string | null {
 
 /**
  * A fingerprint of everything the owner looks at before issuing: the draft (place of supply, due date), the customer's record
- * (name, address, GSTIN) and each line's HSN. The issue form carries it, and issuing is refused if anything has changed since.
+ * (name, address, GSTIN), each line's HSN and the order's delivery address. The issue form carries it, and issuing is refused if anything has changed since.
  */
-function reviewKeyOf(invoice: { updatedAt: Date; placeOfSupply: string | null; dueDate: Date | null }, customerUpdatedAt: Date, items: { id: string; hsnCode: string | null }[]): string {
-  const parts = [invoice.updatedAt.getTime(), invoice.placeOfSupply, invoice.dueDate?.getTime() ?? null, customerUpdatedAt.getTime(), ...items.map((i) => `${i.id}:${i.hsnCode ?? ""}`)];
+type Delivery = { shippingLine1: string | null; shippingCity: string | null; shippingState: string | null; shippingPincode: string | null };
+function reviewKeyOf(invoice: { updatedAt: Date; placeOfSupply: string | null; dueDate: Date | null }, customerUpdatedAt: Date, items: { id: string; hsnCode: string | null }[], delivery: Delivery): string {
+  const parts = [invoice.updatedAt.getTime(), invoice.placeOfSupply, invoice.dueDate?.getTime() ?? null, customerUpdatedAt.getTime(), ...items.map((i) => `${i.id}:${i.hsnCode ?? ""}`), delivery.shippingLine1, delivery.shippingCity, delivery.shippingState, delivery.shippingPincode];
   return createHash("sha256").update(JSON.stringify(parts)).digest("hex").slice(0, 32);
 }
 
@@ -164,7 +168,7 @@ export async function getInvoice(id: string) {
     where: { id },
     include: {
       customer: true,
-      order: { select: { id: true, number: true, status: true, total: true, createdAt: true, shippingLine1: true, shippingCity: true, shippingState: true, shippingPincode: true } },
+      order: { select: { id: true, number: true, status: true, total: true, createdAt: true, quotation: { select: { createdAt: true } }, shippingLine1: true, shippingCity: true, shippingState: true, shippingPincode: true } },
       items: { orderBy: { id: "asc" } },
       payments: { orderBy: [{ createdAt: "asc" }, { id: "asc" }], include: { recordedBy: { select: { name: true } } } },
     },
@@ -207,10 +211,10 @@ export async function getInvoice(id: string) {
     deliveryAddress: joinAddress({ line1: invoice.order.shippingLine1, city: invoice.order.shippingCity, state: invoice.order.shippingState, pincode: invoice.order.shippingPincode }),
     deliveryState: stateByName(invoice.order.shippingState),
     orderUsable: ORDER_CAN_BE_INVOICED.includes(invoice.order.status),
-    /** The first day a payment may be dated: the day the order was created. */
-    minPaymentDate: istDay(invoice.order.createdAt),
+    /** The first day a payment may be dated: the day the quotation was made (an advance can arrive before the order is created). */
+    minPaymentDate: istDay(invoice.order.quotation?.createdAt ?? invoice.order.createdAt),
     /** Sent back with the issue form; issuing is refused if the draft, the customer or an HSN changed since the page was opened. */
-    reviewKey: reviewKeyOf(invoice, invoice.customer.updatedAt, invoice.items),
+    reviewKey: reviewKeyOf(invoice, invoice.customer.updatedAt, invoice.items, invoice.order),
   };
 }
 
@@ -261,10 +265,14 @@ export async function listPayments(params: { page?: number }) {
  * their GSTIN. A state that is WRITTEN but not recognised ("WB" is, "Bengol" is not) gives NO default — falling through to the next
  * source could silently pick the wrong state — so the owner is asked to choose.
  */
-function defaultPlaceOfSupply(order: { shippingState: string | null }, customer: { billingState: string | null; gstin: string | null }): string | null {
-  const written = order.shippingState?.trim() || customer.billingState?.trim();
-  const code = written ? stateByName(written)?.code : stateCodeFromGstin(customer.gstin);
-  return code ? placeOfSupplyLabel(code) : null;
+function defaultPlaceOfSupply(order: Delivery, customer: { billingState: string | null; gstin: string | null }): string | null {
+  const label = (code: string | undefined) => (code ? placeOfSupplyLabel(code) : null);
+  const shippingState = order.shippingState?.trim();
+  if (shippingState) return label(stateByName(shippingState)?.code);
+  // A delivery address written without its state: the goods' state is unknown, so do not borrow the customer's.
+  if ([order.shippingLine1, order.shippingCity, order.shippingPincode].some((part) => part?.trim())) return null;
+  const billingState = customer.billingState?.trim();
+  return label(billingState ? stateByName(billingState)?.code : stateCodeFromGstin(customer.gstin) ?? undefined);
 }
 
 /**
@@ -369,10 +377,11 @@ export async function setInvoiceLineHsn(lineId: string, raw: Record<string, stri
  * record or an HSN code changed after the owner opened the page, nothing is issued and the owner is asked to look again.
  */
 export async function issueInvoice(id: string, reviewKey: string): Promise<IResult<{ id: string; number: string }>> {
+  type Issued = IResult<{ id: string; number: string; orderId?: string }>;
   const session = await requireOwner();
   try {
     const db = getDb();
-    const result = await db.$transaction(async (tx: Tx): Promise<IResult<{ id: string; number: string }>> => {
+    const result = await db.$transaction(async (tx: Tx): Promise<Issued> => {
       // Locks, always in this order: the invoice, then its order. The order lock makes "cancel the order" and "issue its invoice"
       // wait for each other, so an invoice can never be issued on an order that has just been cancelled.
       await lockInvoice(tx, id);
@@ -384,11 +393,11 @@ export async function issueInvoice(id: string, reviewKey: string): Promise<IResu
       const invoice = await tx.invoice.findUnique({ where: { id }, include: { items: { orderBy: { id: "asc" } }, customer: true } });
       if (!invoice) return { ok: false, message: "That invoice no longer exists." };
       if (!DRAFTISH.includes(invoice.status)) return { ok: false, message: "This invoice has already been issued." };
-      const order = await tx.order.findUniqueOrThrow({ where: { id: invoice.orderId }, select: { status: true } });
+      const order = await tx.order.findUniqueOrThrow({ where: { id: invoice.orderId }, select: { status: true, shippingLine1: true, shippingCity: true, shippingState: true, shippingPincode: true } });
       if (!ORDER_CAN_BE_INVOICED.includes(order.status)) return { ok: false, message: "The order is not confirmed (or was cancelled), so its invoice can not be issued." };
       if (invoice.items.length === 0) return { ok: false, message: "This invoice has no items." };
-      if (reviewKeyOf(invoice, invoice.customer.updatedAt, invoice.items) !== reviewKey) {
-        return { ok: false, message: "Something on this invoice or the customer's record changed after you opened the page. Reload it, check it again, then issue." };
+      if (reviewKeyOf(invoice, invoice.customer.updatedAt, invoice.items, order) !== reviewKey) {
+        return { ok: false, message: "Something on this invoice, the customer's record or the order's delivery address changed after you opened the page. Reload it, check it again, then issue." };
       }
 
       const supplier = getInvoiceSupplier();
@@ -445,13 +454,11 @@ export async function issueInvoice(id: string, reviewKey: string): Promise<IResu
       });
       if (changed.count !== 1) throw new Refusal("The invoice was just changed by someone else. Reload and try again.");
       await appendOrderLog(tx, invoice.orderId, logLine(istDay(now), session.name, `invoice ${number} issued`));
-      return { ok: true, id, number };
+      return { ok: true, id, number, orderId: invoice.orderId };
     });
-    if (result.ok) {
-      const row = await getDb().invoice.findUnique({ where: { id }, select: { orderId: true } });
-      refresh(id, row?.orderId);
-    }
-    return result;
+    // Nothing else may fail after the commit: the order id comes back from inside the transaction, not from a second read.
+    if (result.ok) refresh(id, result.orderId);
+    return result.ok ? { ok: true, id, number: result.number } : result;
   } catch (error) {
     if (error instanceof Refusal) return { ok: false, message: error.message };
     return fail(error, "issueInvoice") as IResult<{ id: string; number: string }>;
@@ -498,8 +505,8 @@ function statusFor(totalPaise: bigint, paidPaise: bigint): "ISSUED" | "PARTIALLY
 }
 
 /**
- * Records money that has ALREADY arrived (a person types it in). Never above what is still owed, and not dated before the order
- * existed or in the future. The invoice is locked while this runs, so two people can not each record "the last ₹5,000".
+ * Records money that has ALREADY arrived (a person types it in). Never above what is still owed, and not dated before the
+ * quotation was made (an advance can arrive before the order) or in the future. The invoice is locked while this runs, so two people can not each record "the last ₹5,000".
  * This never charges or sends anything.
  */
 export async function recordPayment(invoiceId: string, raw: Record<string, string>): Promise<IResult> {
@@ -518,11 +525,12 @@ export async function recordPayment(invoiceId: string, raw: Record<string, strin
       await lockInvoice(tx, invoiceId);
       const invoice = await tx.invoice.findUnique({
         where: { id: invoiceId },
-        select: { status: true, total: true, orderId: true, order: { select: { createdAt: true } }, payments: { where: { status: "CONFIRMED" }, select: { amount: true } } },
+        select: { status: true, total: true, orderId: true, order: { select: { createdAt: true, quotation: { select: { createdAt: true } } } }, payments: { where: { status: "CONFIRMED" }, select: { amount: true } } },
       });
       if (!invoice) return { ok: false, message: "That invoice no longer exists." };
       if (invoice.status !== "ISSUED" && invoice.status !== "PARTIALLY_PAID") return { ok: false, message: invoice.status === "PAID" ? "This invoice is already fully paid." : "Payments can only be recorded against an issued invoice." };
-      if (input.paidOn < istDay(invoice.order.createdAt)) return { ok: false, message: "Please check the highlighted fields.", fieldErrors: { paidOn: `Not before ${istDay(invoice.order.createdAt)}, the day the order was created` } };
+      const earliest = istDay(invoice.order.quotation?.createdAt ?? invoice.order.createdAt);
+      if (input.paidOn < earliest) return { ok: false, message: "Please check the highlighted fields.", fieldErrors: { paidOn: `Not before ${earliest}, the day the quotation was made` } };
       const total = paiseOf(invoice.total);
       const paid = invoice.payments.reduce((sum, p) => sum + paiseOf(p.amount), 0n);
       const owed = total - paid;

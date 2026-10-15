@@ -139,7 +139,7 @@ export function PaymentForm({ action, today, minDate, methods, outstanding }: { 
                 </option>
               ))}
             </SelectField>
-            <TextField id="paidOn" label="Date received" type="date" required min={minDate} max={today} defaultValue={v("paidOn", today)} error={e.paidOn} hint={e.paidOn ? undefined : "Not before the order was created, and not in the future."} />
+            <TextField id="paidOn" label="Date received" type="date" required min={minDate} max={today} defaultValue={v("paidOn", today)} error={e.paidOn} hint={e.paidOn ? undefined : "Not before the quotation was made, and not in the future."} />
             <TextField id="reference" label="Reference" defaultValue={v("reference")} error={e.reference} maxLength={100} hint="UTR, UPI transaction id or cheque number." />
             <TextAreaField id="notes" label="Note" defaultValue={v("notes")} error={e.notes} maxLength={500} containerClassName="sm:col-span-2" className="min-h-20" />
           </div>

@@ -93,9 +93,10 @@ const ALIASES: Record<string, string> = {
   "dadra and nagar haveli and daman and diu": "26",
   // Postal / ISO abbreviations and the misspellings people commonly type. Anything not recognised is NOT guessed: the
   // owner is asked to choose the state instead.
-  wb: "19", up: "09", mp: "23", hp: "02", tn: "33", ap: "37", jh: "20", br: "10", od: "21", ka: "29", kl: "32", mh: "27",
-  gj: "24", rj: "08", pb: "03", hr: "06", dl: "07", uk: "05", cg: "22", ct: "22", ts: "36", tg: "36", as: "18", mn: "14",
-  ml: "17", mz: "15", nl: "13", sk: "11", tr: "16", ga: "30", ar: "12", ch: "04", py: "34", an: "35", la: "38", ld: "31",
+  // Only abbreviations that are not also ordinary words, country codes or shared between two states ("CH" is both Chandigarh and
+  // Chhattisgarh; "UK", "AS", "AN" are words or countries): those are left for the owner to choose.
+  wb: "19", up: "09", mp: "23", hp: "02", tn: "33", ap: "37", jh: "20", od: "21", ka: "29", kl: "32", mh: "27", gj: "24",
+  rj: "08", pb: "03", hr: "06", dl: "07", cg: "22", ts: "36", tg: "36",
   tamilnadu: "33", jharkand: "20", chhatisgarh: "22", telengana: "36",
 };
 
