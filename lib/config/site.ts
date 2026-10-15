@@ -12,8 +12,8 @@ import { normaliseSiteUrl } from "@/lib/site-url-check";
 const phoneE164 = normaliseIndianMobile("7979025165");
 if (!phoneE164) throw new Error("siteConfig: business phone number is not a valid Indian mobile number");
 
-// A second number to CALL. Only the main number above is used for WhatsApp links, because the owner has not said the
-// second one is on WhatsApp.
+// A second number. The owner confirmed it is on WhatsApp too, so it gets a chat link next to it (the main number stays
+// the one behind every "WhatsApp Us" button).
 const secondPhoneE164 = normaliseIndianMobile("8051388653");
 if (!secondPhoneE164) throw new Error("siteConfig: second business phone number is not a valid Indian mobile number");
 
@@ -36,17 +36,18 @@ export const siteConfig = {
     region: "Jharkhand",
     country: "India",
     countryCode: "IN",
-    /** Supplied by the owner. The PIN code has not been provided yet — it is simply not shown. */
+    /** Supplied by the owner. */
     streetAddress: "Railway Cinema Road, Purana Bazar" as string | null,
-    postalCode: null as string | null,
+    /** PIN code, supplied by the owner. */
+    postalCode: "826001" as string | null,
   },
 
   contact: {
     /** Main number: phone AND WhatsApp. Every WhatsApp link on the site uses this one. */
     phoneE164,
     phoneDisplay: formatIndianPhone(phoneE164),
-    /** Further numbers, shown for calling only (never used for WhatsApp links). */
-    additionalPhones: [{ e164: secondPhoneE164, display: formatIndianPhone(secondPhoneE164) }],
+    /** Further numbers. `whatsapp: true` only where the owner has said the number is on WhatsApp. */
+    additionalPhones: [{ e164: secondPhoneE164, display: formatIndianPhone(secondPhoneE164), whatsapp: true }],
     email: "munnapen123@gmail.com" as string | null,
     /** Not provided yet. */
     businessHours: null as string | null,

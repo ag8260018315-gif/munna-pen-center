@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { siteConfig } from "@/lib/config/site";
 import { formatIndianPhone, normaliseIndianMobile, toWhatsAppNumber } from "@/lib/phone";
-import { buildEnquiryWhatsAppMessage, buildWhatsAppUrl, whatsAppMessages } from "@/lib/whatsapp";
+import { buildEnquiryWhatsAppMessage, buildWhatsAppUrl, buildWhatsAppUrlForNumber, whatsAppMessages } from "@/lib/whatsapp";
 
 describe("normaliseIndianMobile", () => {
   it.each([
@@ -67,17 +67,25 @@ describe("the business phone numbers", () => {
   // Built from pieces so this file does not itself contain the wrong number it guards against.
   const WRONG = "797902516" + "6";
 
-  it("main number 79790 25165 (phone and WhatsApp) plus a second number to call", () => {
+  it("main number 79790 25165 (phone and WhatsApp) plus a second number (also on WhatsApp, as the owner confirmed)", () => {
     expect(siteConfig.contact.phoneE164).toBe("+917979025165");
     expect(siteConfig.contact.phoneDisplay).toBe("+91 79790 25165");
-    expect(siteConfig.contact.additionalPhones).toEqual([{ e164: "+918051388653", display: "+91 80513 88653" }]);
+    expect(siteConfig.contact.additionalPhones).toEqual([{ e164: "+918051388653", display: "+91 80513 88653", whatsapp: true }]);
   });
 
-  it("WhatsApp links only ever use the main number — the second number is not known to be on WhatsApp", () => {
+  it("the standard WhatsApp links (every \"WhatsApp Us\" button) use the main number", () => {
     for (const url of [buildWhatsAppUrl(), buildWhatsAppUrl(whatsAppMessages.general), buildWhatsAppUrl(whatsAppMessages.bulkOrder), buildWhatsAppUrl("anything")]) {
       expect(url).toContain("wa.me/917979025165");
       expect(url).not.toContain("918051388653");
     }
+  });
+
+  it("the second number gets its own chat link, built the same way, and only a number flagged as on WhatsApp is ever linked", () => {
+    const second = siteConfig.contact.additionalPhones[0]!;
+    expect(second.whatsapp).toBe(true);
+    expect(buildWhatsAppUrlForNumber(second.e164)).toBe("https://wa.me/918051388653");
+    expect(buildWhatsAppUrlForNumber(second.e164, "Hello & welcome")).toBe("https://wa.me/918051388653?text=Hello%20%26%20welcome");
+    for (const phone of siteConfig.contact.additionalPhones) expect(typeof phone.whatsapp).toBe("boolean");
   });
 
   it("the number the owner said is wrong appears nowhere in the project", async () => {

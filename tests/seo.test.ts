@@ -37,18 +37,18 @@ describe("structured data", () => {
     expect(org.telephone).toBe("+917979025165");
     // Both numbers are published as contact points.
     expect((org.contactPoint as { telephone: string }[]).map((point) => point.telephone)).toEqual(["+917979025165", "+918051388653"]);
-    // The owner supplied the street address and email; the PIN code is still unknown and must not appear.
+    // The owner supplied the street address, PIN code and email.
     expect(org.address).toEqual({
       "@type": "PostalAddress",
       addressLocality: "Dhanbad",
       addressRegion: "Jharkhand",
       addressCountry: "IN",
       streetAddress: "Railway Cinema Road, Purana Bazar",
+      postalCode: "826001",
     });
     expect(org.email).toBe("munnapen123@gmail.com");
-    // Nothing invented: no postcode, GSTIN, ratings, reviews or founding date until provided.
+    // Nothing invented: no GSTIN, ratings, reviews or founding date until provided.
     for (const key of ["taxID", "vatID", "aggregateRating", "review", "foundingDate", "numberOfEmployees", "award"]) expect(org).not.toHaveProperty(key);
-    expect(JSON.stringify(org)).not.toMatch(/postalCode/);
   });
 
   it("describes the website with a product-search action", () => {
