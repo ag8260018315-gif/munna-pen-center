@@ -36,7 +36,8 @@ If the panel says *Picture storage is not set up yet*, one of the Vercel values 
 
 ## What the system does to every picture
 
-- Only real JPG, PNG or WebP pictures are accepted — a renamed file, an SVG, a GIF or a PDF is refused. Maximum 8 MB.
+- **Your browser shrinks each picture first** (to at most 1600 pixels, saved as WebP). The website host refuses any single upload over 4.5 MB, and phone or AI-made pictures are often bigger, so this makes every upload small and fast. You can choose pictures up to 30 MB.
+- Only real JPG, PNG or WebP pictures are accepted — a renamed file, an SVG, a GIF or a PDF is refused.
 - It is re-saved as a WebP, at most 1200 pixels on the long side. Hidden camera data (such as the GPS location of your shop or home) is removed.
 - Replacing or removing a picture deletes the old file.
 - The description is required: it is read aloud to blind visitors and used by search engines.

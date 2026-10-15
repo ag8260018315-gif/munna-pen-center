@@ -17,6 +17,16 @@ import { imageAltSchema } from "@/lib/validation/admin-catalogue";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  try {
+    return await handleUpload(request);
+  } catch (error) {
+    // Never let a crash turn into a blank platform error page: the admin should always get a readable message.
+    console.error("[product-image] unexpected failure:", error instanceof Error ? `${error.name}: ${error.message}` : "unknown");
+    return json({ error: "Something went wrong while saving the picture. Please try again." }, 500);
+  }
+}
+
+async function handleUpload(request: Request) {
   const refused = await adminApiGate(request);
   if (refused) return refused;
 
