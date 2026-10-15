@@ -10,7 +10,7 @@ export const setupSchema = z
   .object({
     token: z.string().min(1, "Enter the setup key").max(300),
     name: z.string().trim().min(2, "Enter your name").max(100),
-    email: z.email("Enter a valid e-mail").max(254),
+    email: z.string().trim().pipe(z.email("Enter a valid e-mail").max(254)),
     password: z.string().max(PASSWORD_MAX_LENGTH),
     confirm: z.string().max(PASSWORD_MAX_LENGTH),
   })

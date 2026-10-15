@@ -71,3 +71,8 @@ export async function deleteSession(db: PrismaClient, token: string | undefined)
 export async function deleteAllSessions(db: PrismaClient, userId: string) {
   await db.adminSession.deleteMany({ where: { adminUserId: userId } });
 }
+
+/** Signs a user out everywhere except the browser that holds `keepToken` (after they change their password). */
+export async function deleteOtherSessions(db: PrismaClient, userId: string, keepToken: string | undefined) {
+  await db.adminSession.deleteMany({ where: { adminUserId: userId, ...(keepToken ? { NOT: { tokenHash: hashSessionToken(keepToken) } } : {}) } });
+}
