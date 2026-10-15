@@ -12,6 +12,8 @@ Address: `https://<your-site>/admin`. It only works once the database is connect
 | Categories | Add, edit, deactivate; summary, description, order |
 | Users (owner only) | Add staff accounts, set a new password for someone who forgot theirs, deactivate / reactivate, unlock |
 | My account (everyone) | Change your own password; sign out on other devices |
+| Import products (spreadsheet) | *Products → Import from spreadsheet*: add up to 300 products at once from a CSV file; checked first, all-or-nothing |
+| Add many pictures | *Products → Add many pictures*: choose many picture files at once; each goes to the product named like the file |
 | Product pictures | On a product's page: upload, replace or remove one picture (needs the one-time setup in [`PHOTOS.md`](PHOTOS.md)) |
 | Inventory | Type a stock number per product and press Save. Empty = "not tracked", 0 = out of stock |
 | Enquiries | Read every website enquiry (newest first), filter by status, call or e-mail the sender, and **Create quotation** from it |
@@ -58,6 +60,30 @@ Never send the setup key or the password to anyone — not even to me.
 - Five wrong passwords lock that account for 15 minutes. The message is always the same ("e-mail and password do not match, or the account is temporarily locked"), so nobody can find out which e-mails exist.
 - The browser keeps only a random token in an HttpOnly, Secure, SameSite cookie; the database keeps only a hash of it. A session ends after 12 hours, after 2 hours of no use, on *Sign out*, or when the account is deactivated.
 - Every admin page, form and data function checks the sign-in again by itself.
+
+## Adding many products at once
+
+1. *Products → Import from spreadsheet*, then **Download the template** (just the header row, no example product).
+2. Open it in Excel or Google Sheets. One product per row. Required: `name` and `category` (the category must already exist; copy its name from the list on the page). Everything else is optional: an empty cell stays "not entered", never 0.
+3. Save as **CSV (comma separated, UTF-8)**.
+4. Choose the file and press **Check the file**. It lists every problem with its spreadsheet row number (unknown category or brand, a price that is not a number, a SKU or web address already used, …). **Nothing is saved by the check.**
+5. When it says the file is fine, press **Import**. It is **all-or-nothing**: if anything is wrong, nothing is imported, so you never end up with half a file.
+
+Good to know:
+- `status` is `DRAFT` unless you write `ACTIVE`. Draft products are hidden from the website, so you can import first and publish later.
+- Only the **owner** can fill the price, GST and HSN columns (`purchase_price`, `wholesale_price`, `retail_price`, `gst_percent`, `hsn_code`); a staff import with those cells filled is refused.
+- It only **adds** products. It never changes or deletes an existing one; to change a product, edit it. A SKU or web address that already exists is an error.
+- A product with no `slug` gets a web address made from its name (`blue-pen`, and `blue-pen-2` if that is taken).
+- A column name the page does not know is refused, so a typo like `wholesale_prise` can never silently drop your prices.
+- At most 300 products and 1 MB per file; split bigger files.
+
+## Adding many pictures at once
+
+1. Name each picture file after its product: the product's web address (slug) or its SKU. `blue-pen.jpg` goes to the product `blue-pen`. Spaces and capitals are fine (`Blue Pen.JPG`).
+2. *Products → Add many pictures*, choose all the files (up to 100). The page shows which product each file matches, and flags files with no match or the wrong type before anything is uploaded.
+3. Products that already have a picture are skipped unless you tick **Replace existing pictures**.
+4. Tick **These are generic or AI-made pictures** if they are not photos of your own stock: each description then starts with "Representative image:". Leave it unticked for real photos.
+5. Press **Upload**. Pictures go one at a time, each through the same safety checks and re-encoding as a single upload, and the list shows the result per file. The product's name becomes its description.
 
 ## Staff accounts
 

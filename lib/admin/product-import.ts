@@ -202,19 +202,20 @@ async function analyse(csvText: string, session: AdminSession): Promise<Analysis
       }
     }
 
+    // Clashes are reported even when another cell of the same row is wrong, so one pass lists everything to fix.
+    const rawSlug = get("slug");
+    if (rawSlug && takenSlugs.has(rawSlug)) messages.push(`The web address “${rawSlug}” is already used by another product.`);
+    const rawSku = get("sku");
+    if (rawSku && takenSkus.has(rawSku)) messages.push(`SKU “${rawSku}” is already used by another product${prepared.some((p) => p.data.sku === rawSku) ? " in this file" : ""}.`);
+
     if (result.success) {
       const data = result.data;
-      // Web address: an explicit one must be free; otherwise make one from the name and add -2, -3… if it is taken.
+      // Web address: an explicit one was checked above; otherwise make one from the name and add -2, -3… if it is taken.
       let slug = data.slug;
-      if (slug) {
-        if (takenSlugs.has(slug)) messages.push(`The web address “${slug}” is already used by another product.`);
-      } else {
+      if (!slug) {
         const base = slugify(data.name) || "product";
         slug = base;
         for (let n = 2; takenSlugs.has(slug); n++) slug = `${base}-${n}`;
-      }
-      if (data.sku) {
-        if (takenSkus.has(data.sku)) messages.push(`SKU “${data.sku}” is already used by another product${prepared.some((p) => p.data.sku === data.sku) ? " in this file" : ""}.`);
       }
       if (messages.length === 0 && category) {
         takenSlugs.add(slug);

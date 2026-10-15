@@ -111,6 +111,16 @@ describe.skipIf(!url)("products spreadsheet import on a real database", () => {
     expect(await db.product.count({ where: { sku: "IMP-NEW" } })).toBe(0);
   });
 
+  it("lists a clash and another mistake in the same row together, so one pass shows everything to fix", async () => {
+    const result = await imp.previewProductImport(csv(`${P}First,ImpTest Pens,,,,,IMP-DUP`, `${P}Second,ImpTest Pens,,,,,IMP-DUP,,,,abc`));
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.problems).toHaveLength(1);
+    expect(result.problems[0]!.line).toBe(3);
+    expect(result.problems[0]!.messages.join(" ")).toMatch(/IMP-DUP.*in this file/);
+    expect(result.problems[0]!.messages.join(" ")).toMatch(/GST percent/);
+  });
+
   it("STAFF can import products but not prices, GST or HSN", async () => {
     role = "STAFF";
     const refused = await imp.importProducts(csv(`${P}Staff Pen,ImpTest Pens,,,,,,,,10`, `${P}Staff Pen 2,ImpTest Pens,,,,,,,,,18`));
