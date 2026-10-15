@@ -19,7 +19,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
   if (!isDatabaseConfigured()) return <div className="mx-auto grid max-w-6xl gap-6"><PageHeader title="Invoices" /><DatabaseRequired /></div>;
   const [{ items, total, page, pages }, ready] = await Promise.all([listInvoices({ status: sp.status, q: sp.q, page: Number(sp.page) || 1 }), listOrdersReadyToInvoice()]);
   return (
-    <div className="mx-auto grid max-w-6xl gap-8">
+    <div className="mx-auto grid max-w-6xl grid-cols-1 gap-8">
       <PageHeader title="Invoices" intro="GST tax invoices are made from confirmed orders. Staff can prepare a draft; only the owner issues it." />
 
       {ready.length > 0 && (
@@ -31,7 +31,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
                 <span>
                   <Link href={`/admin/orders/${o.id}`} className="font-semibold text-brand-800 hover:underline">{o.number}</Link> · {o.customer.organizationName} · {formatRupees(o.total.toString())} · <StatusBadge status={o.status} />
                 </span>
-                <ActionButton action={createInvoiceDraftAction.bind(null, o.id)} label="Create draft invoice" variant="secondary" />
+                <ActionButton action={createInvoiceDraftAction.bind(null, o.id)} label="Create draft invoice" variant="secondary" ariaLabel={`Create draft invoice for ${o.number}`} />
               </li>
             ))}
           </ul>

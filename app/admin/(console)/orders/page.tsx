@@ -19,7 +19,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
   if (!isDatabaseConfigured()) return <div className="mx-auto grid max-w-6xl gap-6"><PageHeader title="Orders" /><DatabaseRequired /></div>;
   const [{ items, total, page, pages }, waiting] = await Promise.all([listOrders({ status: sp.status, q: sp.q, page: Number(sp.page) || 1 }), listQuotationsAwaitingOrder()]);
   return (
-    <div className="mx-auto grid max-w-6xl gap-8">
+    <div className="mx-auto grid max-w-6xl grid-cols-1 gap-8">
       <PageHeader title="Orders" intro="An order starts from a quotation the customer accepted. The owner confirms it; then it is processed, dispatched and delivered." />
 
       {waiting.length > 0 && (
@@ -32,7 +32,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
                   <Link href={`/admin/quotes/${q.id}`} className="font-semibold text-brand-800 hover:underline">{q.number}</Link> · {q.customer.organizationName}
                   {q.total && <> · {formatRupees(q.total.toString())}</>}
                 </span>
-                <ActionButton action={createOrderAction.bind(null, q.id)} label="Create order" />
+                <ActionButton action={createOrderAction.bind(null, q.id)} label="Create order" ariaLabel={`Create order from ${q.number}`} />
               </li>
             ))}
           </ul>

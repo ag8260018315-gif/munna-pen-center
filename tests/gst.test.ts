@@ -111,10 +111,18 @@ describe("amount in words", () => {
   });
 
   it("writes rupees and paise", () => {
-    expect(amountInWords("1234.50")).toBe("Rupees One Thousand Two Hundred Thirty Four and Fifty Paise Only");
-    expect(amountInWords("118.05")).toBe("Rupees One Hundred Eighteen and Five Paise Only");
+    expect(amountInWords("1234.50")).toBe("Rupees One Thousand Two Hundred Thirty Four and Paise Fifty Only");
+    expect(amountInWords("118.05")).toBe("Rupees One Hundred Eighteen and Paise Five Only");
     expect(amountInWords("5000.00")).toBe("Rupees Five Thousand Only");
-    expect(amountInWords("0.99")).toBe("Rupees Zero and Ninety Nine Paise Only");
+    expect(amountInWords("0.99")).toBe("Paise Ninety Nine Only");
+    expect(amountInWords("0.05")).toBe("Paise Five Only");
+    // 1,000.50 must never read like 1,050, nor 100.10 like 110.
+    expect(amountInWords("1000.50")).toBe("Rupees One Thousand and Paise Fifty Only");
+    expect(amountInWords("100.10")).toBe("Rupees One Hundred and Paise Ten Only");
+    expect(amountInWords("1050.00")).toBe("Rupees One Thousand Fifty Only");
+    expect(amountInWords("10000000.50")).toBe("Rupees One Crore and Paise Fifty Only");
+    expect(amountInWords("100000.00")).toBe("Rupees One Lakh Only");
+    expect(amountInWords("1190.60")).toBe("Rupees One Thousand One Hundred Ninety and Paise Sixty Only");
     expect(amountInWords("0.00")).toBe("Rupees Zero Only");
     expect(amountInWords("nonsense")).toBe("");
   });
@@ -134,6 +142,15 @@ describe("invoice number", () => {
   it("refuses an invalid year or a sequence outside 1..999999 instead of making a number that breaks the 16-character rule", () => {
     for (const bad of [0, -1, 1.5, MAX_INVOICE_SEQUENCE + 1]) expect(() => invoiceNumber("2026-27", bad)).toThrow();
     for (const year of ["26-27", "2026/27", "", "abcd-ef"]) expect(() => invoiceNumber(year, 1)).toThrow();
+  });
+});
+
+describe("state names people type", () => {
+  it("understands postal abbreviations and common misspellings, and guesses nothing else", () => {
+    for (const [text, code] of [["WB", "19"], ["wb", "19"], ["UP", "09"], ["Tamilnadu", "33"], ["Chhatisgarh", "22"], ["Jharkand", "20"], ["Telengana", "36"], ["JH", "20"], ["MP", "23"], ["Orissa", "21"]] as const) {
+      expect(stateByName(text)?.code, text).toBe(code);
+    }
+    for (const text of ["Bengal", "Pune", "India", "X", "", "  "]) expect(stateByName(text), text).toBeNull();
   });
 });
 

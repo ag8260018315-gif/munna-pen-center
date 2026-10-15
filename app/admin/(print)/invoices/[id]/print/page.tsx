@@ -8,14 +8,23 @@ import { isDatabaseConfigured } from "@/lib/db/client";
 import { amountInWords } from "@/lib/domain/gst";
 import { formatRupees } from "@/lib/domain/quote-math";
 
-export const metadata: Metadata = { title: "Tax invoice (print)" };
 
 const COPY: Record<string, string> = {
   original: "Original for recipient",
   duplicate: "Duplicate for transporter",
   triplicate: "Triplicate for supplier",
 };
+const copyKey = (copy: string | undefined) => (copy !== undefined && Object.hasOwn(COPY, copy) ? copy : "original");
 const dateText = (d: Date | null) => (d ? new Intl.DateTimeFormat("en-IN", { dateStyle: "long", timeZone: "Asia/Kolkata" }).format(d) : "");
+
+/** The page title becomes the default file name of "Save as PDF", so each invoice and copy gets its own ("INV-26-27-0001 original"). */
+export async function generateMetadata({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ copy?: string }> }): Promise<Metadata> {
+  await requireAdmin();
+  const [{ id }, { copy }] = await Promise.all([params, searchParams]);
+  const inv = isDatabaseConfigured() ? await getInvoice(id) : null;
+  const name = inv?.number ? inv.number.replaceAll("/", "-") : "Tax invoice";
+  return { title: { absolute: `${name} ${copyKey(copy)}` } };
+}
 
 /**
  * The tax invoice, for printing or saving as a PDF. Everything on it comes from the invoice as issued (the seller's and buyer's
@@ -30,7 +39,8 @@ export default async function InvoicePrintPage({ params, searchParams }: { param
   const tax = inv.tax;
   const intra = tax.mode === "INTRA_STATE";
   const m = (v: { toString(): string } | string) => formatRupees(v.toString());
-  const copyLabel = COPY[copy ?? "original"] ?? COPY.original;
+  const copyLabel = COPY[copyKey(copy)]!;
+  const shipTo = inv.deliveryAddress && inv.deliveryAddress.toLowerCase() !== (inv.buyerAddress ?? "").toLowerCase() ? inv.deliveryAddress : null;
   const void_ = inv.status === "VOID";
 
   return (
@@ -39,7 +49,7 @@ export default async function InvoicePrintPage({ params, searchParams }: { param
         <PrintButton />
       </div>
       {void_ && <p className="mb-4 border-2 border-red-700 p-2 text-center text-lg font-extrabold uppercase text-red-800">Void — this invoice has been cancelled</p>}
-      {!inv.taxMatchesStored && <p className="mb-4 border-2 border-red-700 p-2 text-center font-bold text-red-800 print:hidden">The tax on this invoice does not match what was stored. Do not send it.</p>}
+      {!inv.taxMatchesStored && <p className="mb-4 border-2 border-red-700 p-2 text-center font-bold text-red-800">The tax on this invoice does not match what was stored. Do not send it.</p>}
 
       <header className="border-b-2 border-slate-400 pb-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -67,6 +77,7 @@ export default async function InvoicePrintPage({ params, searchParams }: { param
           <p className="font-semibold">{inv.buyerName}</p>
           <p>{inv.buyerAddress}</p>
           <p>{inv.buyerGstin ? <>GSTIN: <strong>{inv.buyerGstin}</strong></> : "GSTIN: unregistered / not provided"}</p>
+          {shipTo && <p className="mt-1"><span className="font-semibold">Ship to:</span> {shipTo}</p>}
         </div>
         <div className="sm:text-right">
           <h2 className="text-xs font-bold uppercase tracking-wide text-slate-600">Place of supply</h2>
@@ -93,7 +104,7 @@ export default async function InvoicePrintPage({ params, searchParams }: { param
           {inv.items.map((item, n) => {
             const line = tax.lines[n]!;
             return (
-              <tr key={item.id} className="border-b border-slate-200 align-top">
+              <tr key={item.id} className="break-inside-avoid border-b border-slate-200 align-top">
                 <td className="py-1.5 pr-2">{n + 1}</td>
                 <th scope="row" className="py-1.5 pr-2 text-left font-medium">{item.description}</th>
                 <td className="py-1.5 pr-2">{item.hsnCode ?? ""}</td>
@@ -115,7 +126,7 @@ export default async function InvoicePrintPage({ params, searchParams }: { param
         </tbody>
       </table>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_auto]">
+      <div className="mt-4 grid break-inside-avoid gap-4 sm:grid-cols-[1fr_auto]">
         <div className="text-sm">
           <p><strong>Amount in words:</strong> {amountInWords(inv.total.toString())}</p>
           <table className="mt-3 border-collapse text-xs">
@@ -145,7 +156,7 @@ export default async function InvoicePrintPage({ params, searchParams }: { param
         </dl>
       </div>
 
-      <footer className="mt-10 flex items-end justify-between gap-6 text-sm">
+      <footer className="mt-10 flex break-inside-avoid items-end justify-between gap-6 text-sm">
         <p className="text-xs text-slate-600">This is a computer-generated invoice.</p>
         <div className="text-right">
           <p className="font-semibold">For {inv.supplierName}</p>

@@ -216,9 +216,13 @@ export default async function QuotePage({ params, searchParams }: { params: Prom
         {quote.status === "ACCEPTED" && (
           <div className="mt-5 border-t border-line pt-5">
             {quote.order ? (
-              <p>
-                Order: <Link className="font-semibold text-brand-800 underline" href={`/admin/orders/${quote.order.id}`}>{quote.order.number}</Link>
-              </p>
+              <div className="grid gap-2">
+                <p className="flex flex-wrap items-center gap-3">
+                  Order: <Link className="font-semibold text-brand-800 underline" href={`/admin/orders/${quote.order.id}`}>{quote.order.number}</Link>
+                  <StatusBadge status={quote.order.status} />
+                </p>
+                {quote.order.status === "CANCELLED" && <p className="text-sm text-muted">That order was cancelled. A quotation makes only one order, so to sell again make a new quotation.</p>}
+              </div>
             ) : (
               <>
                 <ActionButton action={createOrderAction.bind(null, quote.id)} label="Create order" />

@@ -138,6 +138,9 @@ describe.skipIf(!url)("orders on a real database", () => {
     expect([done.confirmedAt, done.dispatchedAt, done.deliveredAt].every((d) => d instanceof Date)).toBe(true);
     expect(await t.orders.setOrderStatus(made.id, "DELIVER")).toMatchObject({ ok: false });
     expect(await t.orders.setOrderStatus(made.id, "NOPE")).toMatchObject({ ok: false, message: "Unknown action." });
+    // Every step leaves a dated line saying who did it, in the part of the notes that staff can not edit.
+    const log = ((await t.orders.getOrder(made.id))!.notes ?? "").split("\n").filter((l) => l.startsWith("[log] "));
+    expect(log.map((l) => l.replace(/^\[log\] \d{4}-\d{2}-\d{2} STest Owner: /, ""))).toEqual(["order confirmed", "processing started", "marked as dispatched", "marked as delivered"]);
   });
 
   it("the owner can cancel before dispatch, and a cancelled order stays cancelled", async () => {

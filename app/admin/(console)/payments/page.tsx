@@ -17,7 +17,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
   if (!isDatabaseConfigured()) return <div className="mx-auto grid max-w-6xl gap-6"><PageHeader title="Payments" /><DatabaseRequired /></div>;
   const [receivables, { items, total, page, pages }] = await Promise.all([listReceivables(), listPayments({ page: Number(sp.page) || 1 })]);
   return (
-    <div className="mx-auto grid max-w-6xl gap-8">
+    <div className="mx-auto grid max-w-6xl grid-cols-1 gap-8">
       <PageHeader title="Payments" intro="Money received against invoices, and what is still owed. Payments are recorded from the invoice page, by a person, after the money has arrived." />
 
       <section aria-labelledby="owed" className="grid gap-3">
@@ -83,7 +83,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
                     <td className={tableClasses.td}>{formatRupees(p.amount.toString())}</td>
                     <td className={tableClasses.td}>{PAYMENT_METHOD_LABEL[p.method as keyof typeof PAYMENT_METHOD_LABEL] ?? p.method}</td>
                     <td className={tableClasses.td}>{p.recordedBy?.name ?? "—"}</td>
-                    <td className={tableClasses.td}><StatusBadge status={p.status} /></td>
+                    <td className={tableClasses.td}><StatusBadge status={p.status} label={p.status === "FAILED" ? "Reversed" : undefined} /></td>
                   </tr>
                 ))}
               </tbody>

@@ -10,6 +10,7 @@ import { getOrder } from "@/lib/admin/order-admin";
 import { requireAdmin } from "@/lib/auth/guard";
 import { isDatabaseConfigured } from "@/lib/db/client";
 import { formatRupees } from "@/lib/domain/quote-math";
+import { splitNotes } from "@/lib/domain/order-log";
 import { joinAddress } from "@/lib/domain/supplier";
 
 export const metadata: Metadata = { title: "Order" };
@@ -32,11 +33,13 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   const owner = session.role === "OWNER";
   const editable = ["PENDING_CONFIRMATION", "CONFIRMED", "PROCESSING"].includes(order.status);
   const liveInvoice = order.invoices.find((i) => i.status !== "VOID");
+  const invoiced = order.invoices.some((i) => ["ISSUED", "PARTIALLY_PAID", "PAID"].includes(i.status)); // an issued invoice has to be voided before the order can be cancelled
+  const notes = splitNotes(order.notes);
   const canInvoice = ["CONFIRMED", "PROCESSING", "DISPATCHED", "DELIVERED"].includes(order.status) && !liveInvoice;
   const money = (v: { toString(): string }) => formatRupees(v.toString());
 
   return (
-    <div className="mx-auto grid max-w-5xl gap-8">
+    <div className="mx-auto grid max-w-5xl grid-cols-1 gap-8">
       <Backlink href="/admin/orders">Orders</Backlink>
       <PageHeader
         title={order.number}
@@ -50,7 +53,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           </span>
         }
       />
-      {done && DONE[done] && <Notice kind="success">{DONE[done]}</Notice>}
+      {done !== undefined && Object.hasOwn(DONE, done) && <Notice kind="success">{DONE[done]}</Notice>}
 
       <section aria-labelledby="items">
         <h2 id="items" className="text-xl font-extrabold">Items</h2>
@@ -114,7 +117,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           {order.status === "CONFIRMED" && (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <StatusButton action={orderStepAction.bind(null, order.id, "PROCESS")} label="Start processing" variant="primary" />
-              {owner && <StatusButton action={orderStepAction.bind(null, order.id, "CANCEL")} label="Cancel order" />}
+              {owner && !invoiced && <StatusButton action={orderStepAction.bind(null, order.id, "CANCEL")} label="Cancel order" />}
             </div>
           )}
           {order.status === "PROCESSING" && (
@@ -123,7 +126,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
                 <h3 className="mb-3 font-bold">Dispatch</h3>
                 <DispatchForm action={dispatchOrderAction.bind(null, order.id)} />
               </div>
-              {owner && (
+              {owner && !invoiced && (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   <StatusButton action={orderStepAction.bind(null, order.id, "CANCEL")} label="Cancel order" />
                 </div>
@@ -137,6 +140,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           )}
         </div>
         {!owner && <p className="mt-4 text-sm text-muted">Only the owner can confirm or cancel an order.</p>}
+        {owner && invoiced && ["CONFIRMED", "PROCESSING"].includes(order.status) && <p className="mt-4 text-sm text-muted">This order has an issued invoice. To cancel the order, void the invoice first.</p>}
         <p className="mt-4 text-sm text-muted">Changing the status never sends anything to the customer and does not change stock.</p>
       </section>
 
@@ -146,13 +150,13 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           <div className="mt-4">
             <OrderDetailsForm
               action={saveOrderDetailsAction.bind(null, order.id)}
-              values={{ shippingLine1: order.shippingLine1 ?? "", shippingCity: order.shippingCity ?? "", shippingState: order.shippingState ?? "", shippingPincode: order.shippingPincode ?? "", notes: order.notes ?? "" }}
+              values={{ shippingLine1: order.shippingLine1 ?? "", shippingCity: order.shippingCity ?? "", shippingState: order.shippingState ?? "", shippingPincode: order.shippingPincode ?? "", notes: notes.text }}
             />
           </div>
         ) : (
           <dl className="mt-4 grid gap-4 rounded-xl border border-line bg-white p-5 sm:grid-cols-2">
             <div className="sm:col-span-2"><dt className="text-sm font-semibold text-muted">Delivery address</dt><dd className="mt-1">{joinAddress({ line1: order.shippingLine1, city: order.shippingCity, state: order.shippingState, pincode: order.shippingPincode }) || "—"}</dd></div>
-            <div className="sm:col-span-2"><dt className="text-sm font-semibold text-muted">Internal notes</dt><dd className="mt-1 whitespace-pre-wrap">{order.notes ?? "—"}</dd></div>
+            <div className="sm:col-span-2"><dt className="text-sm font-semibold text-muted">Internal notes</dt><dd className="mt-1 whitespace-pre-wrap break-words">{notes.text || "—"}</dd></div>
           </dl>
         )}
       </section>
@@ -176,8 +180,20 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
             <p className="mt-2 text-sm text-muted">A draft can be checked and corrected. Only the owner can issue it as a tax invoice.</p>
           </div>
         )}
-        {!canInvoice && !liveInvoice && <p className="mt-2 text-sm text-muted">{order.status === "CANCELLED" ? "A cancelled order has no invoice." : "An invoice can be made once the owner has confirmed the order."}</p>}
+        {!canInvoice && !liveInvoice && <p className="mt-2 text-sm text-muted">{order.status === "CANCELLED" ? "A cancelled order can not be invoiced." : "An invoice can be made once the owner has confirmed the order."}</p>}
       </section>
+
+      {notes.log.length > 0 && (
+        <section aria-labelledby="log" className="rounded-xl border border-line bg-white p-5">
+          <h2 id="log" className="text-xl font-extrabold">History</h2>
+          <p className="mt-1 text-sm text-muted">Written by the system when something important happens. It can not be edited.</p>
+          <ul className="mt-3 grid gap-1.5 text-sm">
+            {notes.log.map((line, n) => (
+              <li key={n} className="break-words">{line.replace(/^\[log\] /, "")}</li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

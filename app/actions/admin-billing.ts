@@ -78,7 +78,7 @@ export async function issueInvoiceAction(id: string, _prev: AdminFormState, data
   await requireOwner();
   const raw = formToObject(data);
   if (raw.checked !== "on") return { message: "Tick the box to confirm you have checked the invoice, then issue it.", fieldErrors: { checked: "Tick the box to continue" } };
-  const result = await issueInvoice(id);
+  const result = await issueInvoice(id, raw.reviewKey ?? "");
   if (!result.ok) return { message: result.message };
   revalidatePath(`/admin/invoices/${id}`);
   redirect(`/admin/invoices/${id}?done=issued`);

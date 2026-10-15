@@ -10,12 +10,12 @@ import type { AdminFormState } from "@/lib/validation/admin-catalogue";
 type Action = (prev: AdminFormState, data: FormData) => Promise<AdminFormState>;
 
 /** A single button that runs an action (create an order, create a draft invoice…). A refusal is shown in place. */
-export function ActionButton({ action, label, variant = "primary" }: { action: Action; label: string; variant?: "primary" | "secondary" }) {
+export function ActionButton({ action, label, variant = "primary", ariaLabel }: { action: Action; label: string; variant?: "primary" | "secondary"; ariaLabel?: string }) {
   const [state, formAction, pending] = useActionState(action, {});
   return (
     <form action={formAction} className="grid gap-2">
       <div>
-        <Button type="submit" variant={variant} disabled={pending}>
+        <Button type="submit" variant={variant} disabled={pending} aria-label={ariaLabel}>
           {pending ? "Please wait…" : label}
         </Button>
       </div>
@@ -36,7 +36,7 @@ export function OrderDetailsForm({ action, values }: { action: Action; values: R
           <div className="grid gap-5 rounded-xl border border-line bg-white p-5 sm:grid-cols-2">
             <TextField id="shippingLine1" label="Delivery address" defaultValue={v("shippingLine1")} error={e.shippingLine1} maxLength={200} containerClassName="sm:col-span-2" />
             <TextField id="shippingCity" label="City" defaultValue={v("shippingCity")} error={e.shippingCity} maxLength={80} />
-            <TextField id="shippingState" label="State" defaultValue={v("shippingState")} error={e.shippingState} maxLength={80} hint="Decides whether the invoice carries CGST + SGST or IGST." />
+            <TextField id="shippingState" label="State" defaultValue={v("shippingState")} error={e.shippingState} maxLength={80} hint="The invoice's place of supply is proposed from this; the owner confirms it on the invoice. Locked once an invoice is issued." />
             <TextField id="shippingPincode" label="PIN code" defaultValue={v("shippingPincode")} error={e.shippingPincode} inputMode="numeric" maxLength={6} />
             <TextAreaField id="notes" label="Internal notes" defaultValue={v("notes")} error={e.notes} maxLength={2000} hint="Not shown to the customer." containerClassName="sm:col-span-2" />
           </div>
@@ -87,22 +87,29 @@ export function InvoiceDraftForm({ action, values, states }: { action: Action; v
   );
 }
 
-/** One small form per line: the HSN code (owner only). */
-export function LineHsnForm({ action, lineKey, value, disabled }: { action: Action; lineKey: string; value: string; disabled: boolean }) {
+/** One small form per line: the HSN code (owner only). `itemName` tells a screen reader which line the field and button belong to. */
+export function LineHsnForm({ action, lineKey, itemName, value, disabled }: { action: Action; lineKey: string; itemName: string; value: string; disabled: boolean }) {
   return (
-    <FormShell action={action} submitLabel="Save HSN">
-      {(s) => <TextField id={`hsnCode-${lineKey}`} name="hsnCode" label="HSN code" defaultValue={pick(s, { hsnCode: value }, "hsnCode")} error={s.fieldErrors?.hsnCode} inputMode="numeric" maxLength={8} disabled={disabled} />}
+    <FormShell action={action} submitLabel="Save HSN" submitAriaLabel={`Save HSN for ${itemName}`}>
+      {(s) => <TextField id={`hsnCode-${lineKey}`} name="hsnCode" label="HSN code" aria-label={`HSN code for ${itemName}`} defaultValue={pick(s, { hsnCode: value }, "hsnCode")} error={s.fieldErrors?.hsnCode} inputMode="numeric" maxLength={8} disabled={disabled} />}
     </FormShell>
   );
 }
 
-export function IssueInvoiceForm({ action, ready, blocker }: { action: Action; ready: boolean; blocker?: string }) {
+/** `reviewKey` fingerprints what the owner is looking at; the server refuses to issue if any of it changed since the page was opened. */
+export function IssueInvoiceForm({ action, ready, blocker, reviewKey }: { action: Action; ready: boolean; blocker?: string; reviewKey: string }) {
   const [state, formAction, pending] = useActionState(action, {});
+  const checkboxError = state.fieldErrors?.checked;
   return (
     <form action={formAction} aria-busy={pending} className="grid gap-4">
-      {state.message && <Notice kind="error">{state.message}</Notice>}
-      <Checkbox id="checked" label="I have checked the buyer, the items, the place of supply and the tax split." hint="Once issued, an invoice gets its number and can never be edited. A wrong one can only be voided (and only before any payment)." />
-      {state.fieldErrors?.checked && <p className="-mt-2 text-sm font-medium text-red-700">{state.fieldErrors.checked}</p>}
+      {state.message && !checkboxError && <Notice kind="error">{state.message}</Notice>}
+      <input type="hidden" name="reviewKey" value={reviewKey} />
+      <Checkbox id="checked" label="I have checked the buyer, the items, the place of supply and the tax split." hint="Once issued, an invoice gets its number and can never be edited. A wrong one can only be voided (and only before any payment)." error={checkboxError} />
+      {checkboxError && (
+        <p id="checked-error" role="alert" className="-mt-2 text-sm font-medium text-red-700">
+          {checkboxError}
+        </p>
+      )}
       {blocker && <Notice kind="info">{blocker}</Notice>}
       <div>
         <Button type="submit" size="lg" disabled={pending || !ready}>
@@ -115,7 +122,7 @@ export function IssueInvoiceForm({ action, ready, blocker }: { action: Action; r
 
 // ───────────────────────────── payments ─────────────────────────────
 
-export function PaymentForm({ action, today, methods, outstanding }: { action: Action; today: string; methods: { value: string; label: string }[]; outstanding: string }) {
+export function PaymentForm({ action, today, minDate, methods, outstanding }: { action: Action; today: string; minDate: string; methods: { value: string; label: string }[]; outstanding: string }) {
   return (
     <FormShell action={action} submitLabel="Record payment">
       {(s) => {
@@ -132,7 +139,7 @@ export function PaymentForm({ action, today, methods, outstanding }: { action: A
                 </option>
               ))}
             </SelectField>
-            <TextField id="paidOn" label="Date received" type="date" required defaultValue={v("paidOn", today)} error={e.paidOn} />
+            <TextField id="paidOn" label="Date received" type="date" required min={minDate} max={today} defaultValue={v("paidOn", today)} error={e.paidOn} hint={e.paidOn ? undefined : "Not before the order was created, and not in the future."} />
             <TextField id="reference" label="Reference" defaultValue={v("reference")} error={e.reference} maxLength={100} hint="UTR, UPI transaction id or cheque number." />
             <TextAreaField id="notes" label="Note" defaultValue={v("notes")} error={e.notes} maxLength={500} containerClassName="sm:col-span-2" className="min-h-20" />
           </div>
@@ -145,7 +152,7 @@ export function PaymentForm({ action, today, methods, outstanding }: { action: A
 /** A reason box with one button: voiding an invoice, reversing a payment. */
 export function ReasonForm({ action, id, label, submitLabel }: { action: Action; id: string; label: string; submitLabel: string }) {
   return (
-    <FormShell action={action} submitLabel={submitLabel}>
+    <FormShell action={action} submitLabel={submitLabel} pendingLabel="Working…">
       {(s) => <TextField id={id} name="reason" label={label} required defaultValue={s.values?.reason ?? ""} error={s.fieldErrors?.reason} maxLength={300} />}
     </FormShell>
   );

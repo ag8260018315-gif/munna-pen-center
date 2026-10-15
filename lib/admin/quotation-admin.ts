@@ -2,6 +2,7 @@ import "server-only";
 import { revalidatePath } from "next/cache";
 import { requireAdmin, requireOwner } from "@/lib/auth/guard";
 import { getDb } from "@/lib/db/client";
+import { clampPage } from "@/lib/db/paging";
 import { allocateSequence } from "@/lib/db/sequence";
 import { computeQuote, financialYearOf, quotationNumber } from "@/lib/domain/quote-math";
 import { fieldErrors } from "@/lib/validation/admin-catalogue";
@@ -67,7 +68,7 @@ export async function listQuotations(params: { status?: string; page?: number })
   await requireAdmin();
   const where: Prisma.QuotationWhereInput = {};
   if (["DRAFT", "PENDING_APPROVAL", "SENT", "ACCEPTED", "REJECTED", "EXPIRED", "CANCELLED"].includes(params.status ?? "")) where.status = params.status as never;
-  const page = Math.max(1, Math.floor(params.page ?? 1));
+  const page = clampPage(params.page);
   const db = getDb();
   const [total, items] = await Promise.all([
     db.quotation.count({ where }),
@@ -83,7 +84,7 @@ export async function getQuotation(id: string) {
     include: {
       customer: true,
       enquiry: { include: { items: true } },
-      order: { select: { id: true, number: true } },
+      order: { select: { id: true, number: true, status: true } },
       items: { orderBy: { id: "asc" }, include: { product: { select: { id: true, name: true } } } },
     },
   });

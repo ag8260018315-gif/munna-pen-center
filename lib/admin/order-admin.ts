@@ -2,7 +2,10 @@ import "server-only";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/guard";
 import { getDb } from "@/lib/db/client";
+import { clampPage } from "@/lib/db/paging";
+import { appendOrderLog } from "@/lib/db/order-log";
 import { allocateSequence } from "@/lib/db/sequence";
+import { cleanUserNotes, joinNotes, logLine, splitNotes } from "@/lib/domain/order-log";
 import { computeQuote, financialYearOf, orderNumber } from "@/lib/domain/quote-math";
 import { fieldErrors } from "@/lib/validation/admin-catalogue";
 import { dispatchSchema, ORDER_ACTIONS, orderDetailsSchema, type OrderAction } from "@/lib/validation/admin-sales";
@@ -31,7 +34,13 @@ const fail = (error: unknown, what: string): OResult => {
   console.error(`[admin] ${what} failed:`, error instanceof Error ? error.message : "unknown");
   return GENERIC;
 };
+const istDay = (date: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(date); // YYYY-MM-DD
+/** Locks the order row until the transaction ends: everything that decides what an order may do (cancel, edit, invoice) goes through this lock. */
+async function lockOrder(tx: Tx, id: string) {
+  await tx.$queryRaw`SELECT "id" FROM "Order" WHERE "id" = ${id} FOR UPDATE`;
+}
 const refresh = (id?: string) => {
+  revalidatePath("/admin");
   revalidatePath("/admin/orders");
   if (id) revalidatePath(`/admin/orders/${id}`);
 };
@@ -42,9 +51,9 @@ export async function listOrders(params: { status?: string; q?: string; page?: n
   await requireAdmin();
   const where: Prisma.OrderWhereInput = {};
   if ((ORDER_STATUSES as readonly string[]).includes(params.status ?? "")) where.status = params.status as (typeof ORDER_STATUSES)[number];
-  const q = params.q?.trim().slice(0, 80);
+  const q = typeof params.q === "string" ? params.q.trim().slice(0, 80) : "";
   if (q) where.OR = [{ number: { contains: q, mode: "insensitive" } }, { customer: { organizationName: { contains: q, mode: "insensitive" } } }];
-  const page = Math.max(1, Math.floor(params.page ?? 1));
+  const page = clampPage(params.page);
   const db = getDb();
   const [total, items] = await Promise.all([
     db.order.count({ where }),
@@ -159,19 +168,34 @@ export async function createOrderFromQuotation(quotationId: string): Promise<ORe
 
 const EDITABLE: readonly string[] = ["PENDING_CONFIRMATION", "CONFIRMED", "PROCESSING"];
 
-/** Delivery address and internal notes. Open until the goods leave. */
+const ADDRESS_FIELDS = ["shippingLine1", "shippingCity", "shippingState", "shippingPincode"] as const;
+const INVOICED: readonly string[] = ["ISSUED", "PARTIALLY_PAID", "PAID"];
+
+/**
+ * Delivery address and internal notes. Open until the goods leave. Once an invoice has been issued the address is locked (the
+ * invoice's place of supply and printed "ship to" rest on it); notes stay editable, but the system's own log lines in them do not.
+ */
 export async function updateOrderDetails(id: string, raw: Record<string, string>): Promise<OResult> {
   await requireAdmin();
   const parsed = orderDetailsSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, message: "Please check the highlighted fields.", fieldErrors: fieldErrors(parsed.error) };
   try {
     const db = getDb();
-    const order = await db.order.findUnique({ where: { id }, select: { status: true } });
-    if (!order) return { ok: false, message: "That order no longer exists." };
-    if (!EDITABLE.includes(order.status)) return { ok: false, message: "This order can no longer be edited." };
-    await db.order.update({ where: { id }, data: parsed.data });
-    refresh(id);
-    return { ok: true, id };
+    const result = await db.$transaction(async (tx: Tx): Promise<OResult> => {
+      await lockOrder(tx, id);
+      const order = await tx.order.findUnique({ where: { id }, select: { status: true, notes: true, shippingLine1: true, shippingCity: true, shippingState: true, shippingPincode: true } });
+      if (!order) return { ok: false, message: "That order no longer exists." };
+      if (!EDITABLE.includes(order.status)) return { ok: false, message: "This order can no longer be edited." };
+      const { notes, ...address } = parsed.data;
+      if (ADDRESS_FIELDS.some((field) => address[field] !== order[field])) {
+        const invoiced = await tx.invoice.count({ where: { orderId: id, status: { in: INVOICED as never[] } } });
+        if (invoiced > 0) return { ok: false, message: "An invoice has been issued for this order, so its delivery address is locked. Void the invoice first if the address was wrong." };
+      }
+      await tx.order.update({ where: { id }, data: { ...address, notes: joinNotes(cleanUserNotes(notes), splitNotes(order.notes).log) } });
+      return { ok: true, id };
+    });
+    if (result.ok) refresh(id);
+    return result;
   } catch (error) {
     return fail(error, "updateOrderDetails");
   }
@@ -186,6 +210,14 @@ const FLOW: Record<OrderAction, { from: readonly string[]; to: (typeof ORDER_STA
   DISPATCH: { from: ["PROCESSING"], to: "DISPATCHED" },
   DELIVER: { from: ["DISPATCHED"], to: "DELIVERED" },
   CANCEL: { from: ["PENDING_CONFIRMATION", "CONFIRMED", "PROCESSING"], to: "CANCELLED" },
+};
+
+const STEP_LOG: Record<OrderAction, string> = {
+  CONFIRM: "order confirmed",
+  PROCESS: "processing started",
+  DISPATCH: "marked as dispatched",
+  DELIVER: "marked as delivered",
+  CANCEL: "order cancelled",
 };
 
 /**
@@ -208,11 +240,13 @@ export async function setOrderStatus(id: string, action: string, raw: Record<str
   try {
     const db = getDb();
     const result = await db.$transaction(async (tx: Tx): Promise<OResult> => {
+      // Locked first, so "cancel" and "issue an invoice" can not both succeed on the same order at the same moment.
+      await lockOrder(tx, id);
       const order = await tx.order.findUnique({ where: { id }, select: { status: true, invoices: { select: { status: true } } } });
       if (!order) return { ok: false, message: "That order no longer exists." };
       const rule = FLOW[step];
       if (!rule.from.includes(order.status)) return { ok: false, message: `A ${order.status.toLowerCase().replaceAll("_", " ")} order can not do that.` };
-      if (step === "CANCEL" && order.invoices.some((i) => ["ISSUED", "PARTIALLY_PAID", "PAID"].includes(i.status))) {
+      if (step === "CANCEL" && order.invoices.some((i) => INVOICED.includes(i.status))) {
         return { ok: false, message: "This order has an issued invoice. Void the invoice first, then cancel the order." };
       }
       const now = new Date();
@@ -223,6 +257,7 @@ export async function setOrderStatus(id: string, action: string, raw: Record<str
       // Compare-and-set: if someone else moved the order in the meantime, change nothing.
       const changed = await tx.order.updateMany({ where: { id, status: { in: rule.from as never[] } }, data });
       if (changed.count !== 1) return { ok: false, message: "The order was just changed by someone else. Reload and try again." };
+      await appendOrderLog(tx, id, logLine(istDay(now), session.name, STEP_LOG[step]));
       return { ok: true, id };
     });
     if (result.ok) refresh(id);

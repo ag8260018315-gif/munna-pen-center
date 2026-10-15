@@ -91,6 +91,12 @@ const ALIASES: Record<string, string> = {
   "dadra nagar haveli": "26",
   "dadra and nagar haveli daman and diu": "26",
   "dadra and nagar haveli and daman and diu": "26",
+  // Postal / ISO abbreviations and the misspellings people commonly type. Anything not recognised is NOT guessed: the
+  // owner is asked to choose the state instead.
+  wb: "19", up: "09", mp: "23", hp: "02", tn: "33", ap: "37", jh: "20", br: "10", od: "21", ka: "29", kl: "32", mh: "27",
+  gj: "24", rj: "08", pb: "03", hr: "06", dl: "07", uk: "05", cg: "22", ct: "22", ts: "36", tg: "36", as: "18", mn: "14",
+  ml: "17", mz: "15", nl: "13", sk: "11", tr: "16", ga: "30", ar: "12", ch: "04", py: "34", an: "35", la: "38", ld: "31",
+  tamilnadu: "33", jharkand: "20", chhatisgarh: "22", telengana: "36",
 };
 
 /** "jharkhand", "Orissa", "J&K", "NCT of Delhi" … → the state, or null when the text is not a state we recognise. */
@@ -243,14 +249,18 @@ export function integerInWords(value: bigint): string {
   return parts.join(" ");
 }
 
-/** "1234.50" → "Rupees One Thousand Two Hundred Thirty Four and Fifty Paise Only". */
+/**
+ * "1234.50" → "Rupees One Thousand Two Hundred Thirty Four and Paise Fifty Only". The paise are introduced by the word "Paise"
+ * BEFORE the number, so 1000.50 can never be read as 1,050.
+ */
 export function amountInWords(amount: string): string {
   const paise = toPaise(amount);
   if (paise === null) return "";
   const rupees = paise / 100n;
   const rest = Number(paise % 100n);
+  if (rupees === 0n && rest > 0) return `Paise ${below1000(rest)} Only`;
   const rupeeText = `Rupees ${integerInWords(rupees)}`;
-  return rest > 0 ? `${rupeeText} and ${below1000(rest)} Paise Only` : `${rupeeText} Only`;
+  return rest > 0 ? `${rupeeText} and Paise ${below1000(rest)} Only` : `${rupeeText} Only`;
 }
 
 // ───────────────────────────── invoice number ─────────────────────────────

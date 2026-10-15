@@ -1,6 +1,7 @@
 import "server-only";
 import { requireAdmin } from "@/lib/auth/guard";
 import { getDb } from "@/lib/db/client";
+import { clampPage } from "@/lib/db/paging";
 import { customerSchema } from "@/lib/validation/admin-sales";
 import { fieldErrors } from "@/lib/validation/admin-catalogue";
 import type { Prisma } from "@/generated/prisma/client";
@@ -16,7 +17,7 @@ export async function listCustomers(params: { q?: string; page?: number }) {
   const where: Prisma.CustomerWhereInput = {};
   const q = params.q?.trim().slice(0, 80);
   if (q) where.OR = [{ organizationName: { contains: q, mode: "insensitive" } }, { contactName: { contains: q, mode: "insensitive" } }, { phone: { contains: q.replace(/[\s-]/g, "") } }];
-  const page = Math.max(1, Math.floor(params.page ?? 1));
+  const page = clampPage(params.page);
   const db = getDb();
   const [total, items] = await Promise.all([
     db.customer.count({ where }),

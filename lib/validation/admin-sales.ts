@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isGstinCheckCharacterValid } from "@/lib/gstin";
 
 /** Shared helpers live in admin-catalogue.ts; this file adds customers and quotations. */
 const blankToNull = (v: unknown) => (v === undefined || v === null ? null : typeof v === "string" ? (v.trim() === "" ? null : v.trim()) : v);
@@ -35,7 +36,11 @@ export const customerSchema = z.object({
   email: z.preprocess(blankToNull, z.email("Enter a valid e-mail").max(254).nullable()),
   gstin: z.preprocess(
     (v) => (typeof v === "string" && v.trim() !== "" ? v.replace(/\s/g, "").toUpperCase() : null),
-    z.string().regex(/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/, "That does not look like a GSTIN (15 characters)").nullable(),
+    z
+      .string()
+      .regex(/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/, "That does not look like a GSTIN (15 characters)")
+      .refine(isGstinCheckCharacterValid, "This GSTIN does not pass its check (its last character does not match the rest) — please re-check it")
+      .nullable(),
   ),
   billingLine1: optText(200),
   billingCity: optText(80),

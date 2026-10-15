@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { invoiceNumber } from "@/lib/domain/gst";
 import { financialYearOf } from "@/lib/domain/quote-math";
 import { buildSupplier, joinAddress } from "@/lib/domain/supplier";
+import { TEST_BUYER_GSTIN, TEST_OTHER_STATE_GSTIN, TEST_SUPPLIER_GSTIN, testGstin } from "./helpers/sales-db";
 import { invoiceDraftSchema, paymentSchema } from "@/lib/validation/admin-sales";
 
 const url = process.env.TEST_DATABASE_URL;
@@ -10,8 +11,10 @@ const today = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" 
 
 describe("invoice helpers and validation", () => {
   it("builds the seller block from the supplied GSTIN and the owner's address; the legal name overrides the trading name", () => {
-    const plain = buildSupplier({ gstin: "20ABCDE1234F1Z5" });
-    expect(plain).toEqual({ gstin: "20ABCDE1234F1Z5", name: "Munna Pen Center", address: "Railway Cinema Road, Purana Bazar, Dhanbad, Jharkhand - 826001" });
+    const plain = buildSupplier({ gstin: TEST_SUPPLIER_GSTIN });
+    expect(plain).toEqual({ gstin: TEST_SUPPLIER_GSTIN, name: "Munna Pen Center", address: "Railway Cinema Road, Purana Bazar, Dhanbad, Jharkhand - 826001", homeStateCode: "20" });
+    expect(buildSupplier({ gstin: null, region: "Chandigarh" }).homeStateCode).toBe("04");
+    expect(buildSupplier({ gstin: null, region: "Nowhereland" }).homeStateCode).toBeNull();
     expect(buildSupplier({ gstin: null, legalName: "  Munna Pen Center & Co  " })).toMatchObject({ gstin: null, name: "Munna Pen Center & Co" });
     expect(buildSupplier({ gstin: null, legalName: "  " }).name).toBe("Munna Pen Center");
   });
@@ -50,9 +53,10 @@ describe.skipIf(!url)("invoices and payments on a real database", () => {
     await t.resetData();
     t.state.role = "OWNER";
     t.state.signedIn = true;
-    t.state.businessGstin = (await import("./helpers/sales-db")).TEST_SUPPLIER_GSTIN;
+    t.state.businessGstin = TEST_SUPPLIER_GSTIN;
     t.state.legalName = null;
-    customerId = (await t.newCustomer({ gstin: "20AAAAA0000A1Z5" })).id;
+    t.state.region = undefined;
+    customerId = (await t.newCustomer({ gstin: TEST_BUYER_GSTIN })).id;
   });
 
   /** A draft invoice for a fresh confirmed order. */
@@ -64,10 +68,12 @@ describe.skipIf(!url)("invoices and payments on a real database", () => {
   }
   async function issued(lines?: Parameters<typeof t.confirmedOrder>[1], customer = customerId) {
     const d = await draft(lines, customer);
-    const r = await t.invoices.issueInvoice(d.id);
+    const r = await issue(d.id);
     if (!r.ok) throw new Error(`setup: ${r.message}`);
     return { ...d, number: r.number };
   }
+  /** Issues the way the screen does: with the fingerprint of the page the owner was looking at. */
+  const issue = async (id: string) => t.invoices.issueInvoice(id, (await t.invoices.getInvoice(id))?.reviewKey ?? "none");
   const pay = (invoiceId: string, extra: Record<string, string> = {}) => t.invoices.recordPayment(invoiceId, { amount: "100", method: "UPI", reference: "UTR1", paidOn: today(), ...extra });
 
   it("refuses everyone who is not signed in", async () => {
@@ -81,7 +87,7 @@ describe.skipIf(!url)("invoices and payments on a real database", () => {
       () => t.invoices.createInvoiceDraft("x"),
       () => t.invoices.updateInvoiceDraft("x", {}),
       () => t.invoices.setInvoiceLineHsn("x", {}),
-      () => t.invoices.issueInvoice("x"),
+      () => issue("x"),
       () => t.invoices.voidInvoice("x", {}),
       () => t.invoices.recordPayment("x", {}),
       () => t.invoices.reversePayment("x", {}),
@@ -144,14 +150,14 @@ describe.skipIf(!url)("invoices and payments on a real database", () => {
     it("is for the owner only", async () => {
       const d = await draft();
       t.state.role = "STAFF";
-      await expect(t.invoices.issueInvoice(d.id)).rejects.toThrow("NEXT_NOT_FOUND");
+      await expect(issue(d.id)).rejects.toThrow("NEXT_NOT_FOUND");
       expect((await t.invoices.getInvoice(d.id))!.status).toBe("DRAFT");
     });
 
     it("inside the supplier's state: CGST + SGST, numbered INV/yy-yy/0001, buyer and seller frozen on the invoice", async () => {
       t.state.legalName = "Munna Pen Center";
       const d = await draft([{ description: "Pen", quantity: "1", unitPrice: "10.10", gstRatePercent: "5", hsnCode: "9608" }, { description: "Ruler", quantity: "10", unitPrice: "100", gstRatePercent: "18", hsnCode: "9017" }]);
-      const r = await t.invoices.issueInvoice(d.id);
+      const r = await issue(d.id);
       expect(r).toMatchObject({ ok: true });
       if (!r.ok) return;
       const [a, b] = fy().split("-");
@@ -160,7 +166,7 @@ describe.skipIf(!url)("invoices and payments on a real database", () => {
       expect(r.number.length).toBeLessThanOrEqual(16);
 
       const inv = (await t.invoices.getInvoice(d.id))!;
-      expect(inv).toMatchObject({ status: "ISSUED", number: r.number, financialYear: fy(), sequence: 1, issued: true, placeOfSupply: "20-Jharkhand", buyerGstin: "20AAAAA0000A1Z5", supplierGstin: "20ABCDE1234F1Z5", supplierName: "Munna Pen Center" });
+      expect(inv).toMatchObject({ status: "ISSUED", number: r.number, financialYear: fy(), sequence: 1, issued: true, placeOfSupply: "20-Jharkhand", buyerGstin: TEST_BUYER_GSTIN, supplierGstin: TEST_SUPPLIER_GSTIN, supplierName: "Munna Pen Center" });
       expect(inv.buyerName).toBe((await t.db.customer.findUniqueOrThrow({ where: { id: customerId } })).organizationName);
       expect(inv.buyerAddress).toBe("12 Main Road, Dhanbad, Jharkhand - 826001");
       expect(inv.supplierAddress).toBe("Railway Cinema Road, Purana Bazar, Dhanbad, Jharkhand - 826001");
@@ -175,7 +181,7 @@ describe.skipIf(!url)("invoices and payments on a real database", () => {
     it("outside the supplier's state: IGST only", async () => {
       const d = await draft([{ description: "Pen", quantity: "1", unitPrice: "10.10", gstRatePercent: "5" }, { description: "Ruler", quantity: "10", unitPrice: "100", gstRatePercent: "18" }]);
       await t.invoices.updateInvoiceDraft(d.id, { placeOfSupplyCode: "27", dueDate: "" });
-      expect(await t.invoices.issueInvoice(d.id)).toMatchObject({ ok: true });
+      expect(await issue(d.id)).toMatchObject({ ok: true });
       const inv = (await t.invoices.getInvoice(d.id))!;
       // 10.10 @ 5% = 0.505 → 0.51 ; 1000 @ 18% = 180.
       expect([inv.cgstTotal, inv.sgstTotal, inv.igstTotal, inv.total].map((x) => x.toString())).toEqual(["0", "0", "180.51", "1190.61"]);
@@ -186,18 +192,18 @@ describe.skipIf(!url)("invoices and payments on a real database", () => {
     it("will not issue without the business GSTIN, and a refused attempt uses up no number", async () => {
       t.state.businessGstin = null;
       const a = await draft();
-      expect(await t.invoices.issueInvoice(a.id)).toMatchObject({ ok: false, message: expect.stringContaining("GSTIN") });
+      expect(await issue(a.id)).toMatchObject({ ok: false, message: expect.stringContaining("GSTIN") });
       expect((await t.invoices.getInvoice(a.id))!.supplierReady).toBe(false);
       expect(await t.db.numberSequence.count({ where: { scope: "INV" } })).toBe(0);
-      t.state.businessGstin = (await import("./helpers/sales-db")).TEST_SUPPLIER_GSTIN;
-      expect(await t.invoices.issueInvoice(a.id)).toMatchObject({ ok: true, number: invoiceNumber(fy(), 1) });
+      t.state.businessGstin = TEST_SUPPLIER_GSTIN;
+      expect(await issue(a.id)).toMatchObject({ ok: true, number: invoiceNumber(fy(), 1) });
     });
 
     it("refuses, and keeps the number free, when the place of supply, the buyer's address or the due date is wrong", async () => {
       const noAddress = await t.newCustomer({ billingLine1: null, billingCity: null, billingState: null, billingPincode: null });
       const a = await draft(undefined, noAddress.id);
       await t.invoices.updateInvoiceDraft(a.id, { placeOfSupplyCode: "20", dueDate: "" });
-      expect(await t.invoices.issueInvoice(a.id)).toMatchObject({ ok: false, message: expect.stringContaining("billing address") });
+      expect(await issue(a.id)).toMatchObject({ ok: false, message: expect.stringContaining("billing address") });
 
       const noPlace = await t.newCustomer({ billingState: null });
       const orderId = await t.confirmedOrder(noPlace.id);
@@ -205,30 +211,31 @@ describe.skipIf(!url)("invoices and payments on a real database", () => {
       const b = await t.invoices.createInvoiceDraft(orderId);
       if (!b.ok) throw new Error("setup");
       expect((await t.invoices.getInvoice(b.id))!.placeOfSupply).toBeNull();
-      expect(await t.invoices.issueInvoice(b.id)).toMatchObject({ ok: false, message: expect.stringContaining("place of supply") });
+      expect(await issue(b.id)).toMatchObject({ ok: false, message: expect.stringContaining("place of supply") });
 
       const c = await draft();
       await t.invoices.updateInvoiceDraft(c.id, { placeOfSupplyCode: "20", dueDate: "2020-01-01" });
-      expect(await t.invoices.issueInvoice(c.id)).toMatchObject({ ok: false, message: expect.stringContaining("due date") });
+      expect(await issue(c.id)).toMatchObject({ ok: false, message: expect.stringContaining("due date") });
 
       expect(await t.db.numberSequence.count({ where: { scope: "INV" } })).toBe(0);
       await t.invoices.updateInvoiceDraft(c.id, { placeOfSupplyCode: "20", dueDate: "" });
-      expect(await t.invoices.issueInvoice(c.id)).toMatchObject({ ok: true, number: invoiceNumber(fy(), 1) });
+      expect(await issue(c.id)).toMatchObject({ ok: true, number: invoiceNumber(fy(), 1) });
     });
 
     it("will not issue where UTGST would apply (seller in a Union Territory without a legislature, selling inside it)", async () => {
-      t.state.businessGstin = "04ABCDE1234F1Z5"; // made up, state code 04 = Chandigarh
+      t.state.businessGstin = testGstin("04ABCDE1234F1Z"); // made up, state code 04 = Chandigarh
+      t.state.region = "Chandigarh";
       const d = await draft();
       await t.invoices.updateInvoiceDraft(d.id, { placeOfSupplyCode: "04", dueDate: "" });
-      expect(await t.invoices.issueInvoice(d.id)).toMatchObject({ ok: false, message: expect.stringContaining("UTGST") });
+      expect(await issue(d.id)).toMatchObject({ ok: false, message: expect.stringContaining("UTGST") });
       await t.invoices.updateInvoiceDraft(d.id, { placeOfSupplyCode: "20", dueDate: "" });
-      expect(await t.invoices.issueInvoice(d.id)).toMatchObject({ ok: true }); // leaving the territory is an ordinary IGST sale
+      expect(await issue(d.id)).toMatchObject({ ok: true }); // leaving the territory is an ordinary IGST sale
       expect((await t.invoices.getInvoice(d.id))!.mode).toBe("INTER_STATE");
     });
 
     it("numbers invoices without gaps or repeats, even when issued at the same moment", async () => {
       const drafts = await Promise.all([1, 2, 3, 4, 5].map(() => draft()));
-      const results = await Promise.all(drafts.map((d) => t.invoices.issueInvoice(d.id)));
+      const results = await Promise.all(drafts.map((d) => issue(d.id)));
       expect(results.every((r) => r.ok)).toBe(true);
       const rows = await t.db.invoice.findMany({ where: { customerId }, select: { number: true, sequence: true } });
       expect(rows.map((r) => r.sequence).sort()).toEqual([1, 2, 3, 4, 5]);
@@ -237,7 +244,7 @@ describe.skipIf(!url)("invoices and payments on a real database", () => {
 
     it("can not be issued twice, and an issued invoice can not be changed — not even directly in the database", async () => {
       const d = await issued();
-      expect(await t.invoices.issueInvoice(d.id)).toMatchObject({ ok: false, message: expect.stringContaining("already") });
+      expect(await issue(d.id)).toMatchObject({ ok: false, message: expect.stringContaining("already") });
       expect(await t.invoices.updateInvoiceDraft(d.id, { placeOfSupplyCode: "27", dueDate: "" })).toMatchObject({ ok: false });
       const line = (await t.invoices.getInvoice(d.id))!.items[0]!;
       expect(await t.invoices.setInvoiceLineHsn(line.id, { hsnCode: "9609" })).toMatchObject({ ok: false });
@@ -255,7 +262,7 @@ describe.skipIf(!url)("invoices and payments on a real database", () => {
       expect(second).toMatchObject({ ok: true });
       if (!second.ok) return;
       expect(second.id).not.toBe(first.id);
-      expect(await t.invoices.issueInvoice(second.id)).toMatchObject({ ok: true, number: invoiceNumber(fy(), 2) });
+      expect(await issue(second.id)).toMatchObject({ ok: true, number: invoiceNumber(fy(), 2) });
       expect(await t.db.invoice.findUniqueOrThrow({ where: { id: first.id } })).toMatchObject({ status: "VOID", number: first.number });
     });
   });
@@ -364,7 +371,7 @@ describe.skipIf(!url)("invoices and payments on a real database", () => {
       await pay(a.id, { amount: "300" });
       const overdue = await draft();
       await t.invoices.updateInvoiceDraft(overdue.id, { placeOfSupplyCode: "20", dueDate: today() });
-      await t.invoices.issueInvoice(overdue.id);
+      await issue(overdue.id);
       await t.db.invoice.update({ where: { id: overdue.id }, data: {} }); // no-op; due date is end of today, so not overdue yet
       const receivables = (await t.invoices.listReceivables()).filter((r) => [a.id, overdue.id].includes(r.id));
       expect(receivables.find((r) => r.id === a.id)).toMatchObject({ status: "PARTIALLY_PAID", paid: "300.00", outstanding: "880.00", overdue: false });
@@ -375,6 +382,152 @@ describe.skipIf(!url)("invoices and payments on a real database", () => {
       expect((await t.invoices.listInvoices({ status: "PARTIALLY_PAID" })).items.map((x) => x.id)).toContain(a.id);
       expect((await t.invoices.listInvoices({ status: "BOGUS", page: -1 })).page).toBe(1);
       expect((await t.invoices.listPayments({})).items.some((p) => p.invoice.id === a.id)).toBe(true);
+    });
+  });
+
+  describe("review fixes", () => {
+    it("proposes the place of supply only from a state it recognises — a written but unrecognised state gives no default instead of falling through", async () => {
+      const posOf = async (shippingState: string | null, billingState: string | null, gstin: string | null = null) => {
+        const customer = await t.newCustomer({ billingState, gstin });
+        const orderId = await t.confirmedOrder(customer.id);
+        await t.db.order.update({ where: { id: orderId }, data: { shippingState } });
+        const made = await t.invoices.createInvoiceDraft(orderId);
+        if (!made.ok) throw new Error("setup");
+        return (await t.invoices.getInvoice(made.id))!.placeOfSupply;
+      };
+      expect(await posOf("WB", "Jharkhand")).toBe("19-West Bengal");
+      expect(await posOf("Bengol", "Jharkhand")).toBeNull(); // unrecognised: NOT silently Jharkhand
+      expect(await posOf(null, "Maharashtra")).toBe("27-Maharashtra");
+      expect(await posOf(null, "Pune")).toBeNull();
+      expect(await posOf(null, null, TEST_OTHER_STATE_GSTIN)).toBe("27-Maharashtra");
+      expect(await posOf(null, null, null)).toBeNull();
+    });
+
+    it("refuses to issue if the draft, the customer or an HSN changed after the owner opened the page", async () => {
+      const d = await draft();
+      const opened = (await t.invoices.getInvoice(d.id))!.reviewKey;
+      t.state.role = "STAFF";
+      await t.invoices.updateInvoiceDraft(d.id, { placeOfSupplyCode: "27", dueDate: "" }); // staff changes the place of supply
+      t.state.role = "OWNER";
+      expect(await t.invoices.issueInvoice(d.id, opened)).toMatchObject({ ok: false, message: expect.stringContaining("changed") });
+      expect((await t.invoices.getInvoice(d.id))!.status).toBe("DRAFT");
+
+      const second = (await t.invoices.getInvoice(d.id))!.reviewKey;
+      await t.db.customer.update({ where: { id: customerId }, data: { billingCity: "Bokaro" } }); // the customer's address changes
+      expect(await t.invoices.issueInvoice(d.id, second)).toMatchObject({ ok: false });
+      const third = (await t.invoices.getInvoice(d.id))!;
+      const line = third.items[0]!;
+      expect(await t.invoices.setInvoiceLineHsn(line.id, { hsnCode: "9609" })).toMatchObject({ ok: true }); // an HSN changes
+      expect(await t.invoices.issueInvoice(d.id, third.reviewKey)).toMatchObject({ ok: false });
+      expect(await t.invoices.issueInvoice(d.id, "")).toMatchObject({ ok: false });
+      expect(await issue(d.id)).toMatchObject({ ok: true }); // with a fresh look it goes through
+    });
+
+    it("checks the seller's GSTIN: check character, and the state against the business address", async () => {
+      const d = await draft();
+      t.state.businessGstin = TEST_SUPPLIER_GSTIN.slice(0, 14) + (TEST_SUPPLIER_GSTIN.endsWith("A") ? "B" : "A"); // right shape, wrong check character
+      expect((await t.invoices.getInvoice(d.id))!.supplierProblem).toContain("check");
+      expect(await issue(d.id)).toMatchObject({ ok: false, message: expect.stringContaining("check") });
+      t.state.businessGstin = TEST_OTHER_STATE_GSTIN; // a valid number, but registered in Maharashtra while the printed address is in Jharkhand
+      expect(await issue(d.id)).toMatchObject({ ok: false, message: expect.stringContaining("Maharashtra") });
+      expect(await t.db.numberSequence.count({ where: { scope: "INV" } })).toBe(0);
+      t.state.businessGstin = TEST_SUPPLIER_GSTIN;
+      expect((await t.invoices.getInvoice(d.id))!.supplierProblem).toBeNull();
+      expect(await issue(d.id)).toMatchObject({ ok: true });
+    });
+
+    it("checks the customer's GSTIN at issue too (data saved before the check existed)", async () => {
+      const customer = await t.newCustomer({ gstin: TEST_BUYER_GSTIN.slice(0, 14) + (TEST_BUYER_GSTIN.endsWith("A") ? "B" : "A") });
+      const d = await draft(undefined, customer.id);
+      expect((await t.invoices.getInvoice(d.id))!.customerGstinOk).toBe(false);
+      expect(await issue(d.id)).toMatchObject({ ok: false, message: expect.stringContaining("customer's GSTIN") });
+    });
+
+    it("will not issue an invoice whose total is zero", async () => {
+      const d = await draft([{ description: "Free sample", quantity: "5", unitPrice: "0", gstRatePercent: "18" }]);
+      expect(await issue(d.id)).toMatchObject({ ok: false, message: expect.stringContaining("zero") });
+      expect(await t.db.numberSequence.count({ where: { scope: "INV" } })).toBe(0);
+    });
+
+    it("a refusal after the number was taken rolls the number back (here: the year's numbers are used up)", async () => {
+      const d = await draft();
+      await t.db.numberSequence.create({ data: { scope: "INV", financialYear: fy(), lastValue: 999_999 } });
+      expect(await issue(d.id)).toMatchObject({ ok: false, message: expect.stringContaining("used up") });
+      expect((await t.db.numberSequence.findFirstOrThrow({ where: { scope: "INV" } })).lastValue).toBe(999_999); // not 1,000,000
+      expect((await t.invoices.getInvoice(d.id))!.status).toBe("DRAFT");
+    });
+
+    it("cancelling an order and issuing its invoice at the same moment never both succeed", async () => {
+      for (let round = 0; round < 6; round++) {
+        const d = await draft();
+        const [issuedResult, cancelled] = await Promise.all([issue(d.id), t.orders.setOrderStatus(d.orderId, "CANCEL")]);
+        expect(issuedResult.ok && cancelled.ok, `round ${round}`).toBe(false);
+        const order = await t.db.order.findUniqueOrThrow({ where: { id: d.orderId } });
+        const invoice = await t.db.invoice.findUniqueOrThrow({ where: { id: d.id } });
+        expect(order.status === "CANCELLED" && invoice.status === "ISSUED", `round ${round}`).toBe(false);
+      }
+    });
+
+    it("a draft on a cancelled order can not be issued, and is not counted as waiting", async () => {
+      const d = await draft();
+      expect(await t.orders.setOrderStatus(d.orderId, "CANCEL")).toMatchObject({ ok: true }); // allowed: only a draft exists
+      expect(await issue(d.id)).toMatchObject({ ok: false, message: expect.stringContaining("cancelled") });
+      expect((await t.invoices.getInvoice(d.id))!.orderUsable).toBe(false);
+      const before = (await t.invoices.getBillingCounts()).draftInvoices;
+      const other = await draft();
+      expect((await t.invoices.getBillingCounts()).draftInvoices).toBe(before + 1);
+      await t.orders.setOrderStatus(other.orderId, "CANCEL");
+      expect((await t.invoices.getBillingCounts()).draftInvoices).toBe(before);
+    });
+
+    it("keeps an audit trail on the order that staff can not edit or forge; the address locks once an invoice is issued", async () => {
+      const i = await issued();
+      await t.invoices.voidInvoice(i.id, { reason: "Wrong rate" });
+      const notes = (await t.db.order.findUniqueOrThrow({ where: { id: i.orderId } })).notes!;
+      expect(notes).toMatch(/\[log\] \d{4}-\d{2}-\d{2} STest Owner: order confirmed/);
+      expect(notes).toMatch(/invoice INV\/\d{2}-\d{2}\/0001 issued/);
+      expect(notes).toMatch(/invoice INV\/\d{2}-\d{2}\/0001 voided — Wrong rate/);
+
+      const ADDRESS = { shippingLine1: "12 Main Road", shippingCity: "Dhanbad", shippingState: "Jharkhand", shippingPincode: "826001" }; // what the form always sends along
+      t.state.role = "STAFF";
+      // Staff replace the notes with their own text, including a line that imitates a log line.
+      expect(await t.orders.updateOrderDetails(i.orderId, { ...ADDRESS, notes: "Call before delivery\n[log] 2026-01-01 Nobody: forged" })).toMatchObject({ ok: true });
+      const after = (await t.db.order.findUniqueOrThrow({ where: { id: i.orderId } })).notes!;
+      expect(after).toContain("invoice INV/");
+      expect(after).toContain("voided — Wrong rate");
+      expect(after).toContain("Call before delivery");
+      expect(after.split("\n").filter((l) => l.startsWith("[log] ") && l.includes("forged"))).toEqual([]);
+      expect(after).toContain("2026-01-01 Nobody: forged"); // kept as ordinary text, no longer dressed as a log line
+
+      // Issue a new invoice; now the delivery address is locked, but notes stay editable.
+      const again = await t.invoices.createInvoiceDraft(i.orderId);
+      if (!again.ok) throw new Error("setup");
+      t.state.role = "OWNER";
+      expect(await issue(again.id)).toMatchObject({ ok: true });
+      expect(await t.orders.updateOrderDetails(i.orderId, { shippingCity: "Elsewhere", notes: "x" })).toMatchObject({ ok: false, message: expect.stringContaining("locked") });
+      expect(await t.orders.updateOrderDetails(i.orderId, { ...ADDRESS, notes: "only the note changes" })).toMatchObject({ ok: true }); // the address is unchanged, so only the note changes
+    });
+
+    it("a void invoice owes nothing", async () => {
+      const i = await issued([{ description: "Pen", quantity: "1", unitPrice: "1000", gstRatePercent: "18" }]);
+      expect((await t.invoices.getInvoice(i.id))!.outstanding).toBe("1180.00");
+      await t.invoices.voidInvoice(i.id, { reason: "mistake" });
+      expect((await t.invoices.getInvoice(i.id))!.outstanding).toBe("0.00");
+      expect((await t.invoices.listReceivables()).some((r) => r.id === i.id)).toBe(false);
+    });
+
+    it("a payment can not be dated before the order existed", async () => {
+      const i = await issued();
+      expect(await pay(i.id, { paidOn: "2001-01-01" })).toMatchObject({ ok: false, fieldErrors: { paidOn: expect.stringContaining("Not before") } });
+      expect(await pay(i.id, { paidOn: today() })).toMatchObject({ ok: true });
+    });
+
+    it("copes with odd addresses: a huge or repeated page number, and a repeated search box", async () => {
+      expect((await t.orders.listOrders({ page: Number.POSITIVE_INFINITY })).page).toBe(1);
+      expect((await t.orders.listOrders({ page: 1e12 })).page).toBe(10_000);
+      expect((await t.invoices.listInvoices({ page: Number.NaN })).page).toBe(1);
+      await expect(t.orders.listOrders({ q: ["a", "b"] as unknown as string })).resolves.toBeDefined();
+      await expect(t.invoices.listInvoices({ q: ["a", "b"] as unknown as string })).resolves.toBeDefined();
     });
   });
 });

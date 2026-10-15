@@ -220,6 +220,14 @@ describe.skipIf(!url)("quotations on a real database", () => {
     expect(await db.customer.findUniqueOrThrow({ where: { id: r.id } })).toMatchObject({ phone: "+919876543210", gstin: null, email: null, type: "SCHOOL" });
     expect(await customers.saveCustomer(r.id, { type: "SCHOOL", organizationName: "QTest College", contactName: "Ravi", phone: "12345" })).toMatchObject({ ok: false, fieldErrors: { phone: expect.any(String) } });
     expect(await customers.saveCustomer(r.id, { type: "SCHOOL", organizationName: "QTest College", contactName: "Ravi", phone: "9876543210", gstin: "not-a-gstin" })).toMatchObject({ ok: false, fieldErrors: { gstin: expect.any(String) } });
+    // A well-shaped GSTIN with a wrong check character (a mistyped digit) is refused; the right one is kept.
+    const { gstinCheckCharacter } = await import("@/lib/gstin");
+    const body = "20AAAAA0000A1Z";
+    const right = body + gstinCheckCharacter(body);
+    const wrong = body + (right.endsWith("A") ? "B" : "A");
+    expect(await customers.saveCustomer(r.id, { type: "SCHOOL", organizationName: "QTest College", contactName: "Ravi", phone: "9876543210", gstin: wrong })).toMatchObject({ ok: false, fieldErrors: { gstin: expect.stringContaining("check") } });
+    expect(await customers.saveCustomer(r.id, { type: "SCHOOL", organizationName: "QTest College", contactName: "Ravi", phone: "9876543210", gstin: right.toLowerCase() })).toMatchObject({ ok: true });
+    expect(await db.customer.findUniqueOrThrow({ where: { id: r.id } })).toMatchObject({ gstin: right });
     expect(await customers.saveCustomer("missing", { type: "SCHOOL", organizationName: "QTest X", contactName: "Ravi", phone: "9876543210" })).toMatchObject({ ok: false });
   });
 });

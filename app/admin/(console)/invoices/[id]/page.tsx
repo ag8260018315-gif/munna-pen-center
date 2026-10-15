@@ -24,6 +24,7 @@ const DONE: Record<string, string> = {
   reversed: "Payment reversed.",
 };
 const dateText = (d: Date | null) => (d ? new Intl.DateTimeFormat("en-IN", { dateStyle: "long", timeZone: "Asia/Kolkata" }).format(d) : "—");
+const hasKey = <T extends object>(table: T, key: string | undefined): key is Extract<keyof T, string> => key !== undefined && Object.hasOwn(table, key);
 const dateInput = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(d); // YYYY-MM-DD
 
 export default async function InvoicePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ done?: string }> }) {
@@ -49,13 +50,17 @@ export default async function InvoicePage({ params, searchParams }: { params: Pr
   // Why a draft can not be issued yet (the owner sees this beside the button).
   const blockers: string[] = [];
   if (draft) {
-    if (!inv.supplierReady) blockers.push("The business GSTIN has not been set up on the server yet, so nothing can be issued. See the invoicing section of docs/ADMIN.md.");
+    if (inv.supplierProblem) blockers.push(inv.supplierProblem);
+    if (!inv.orderUsable) blockers.push(`The order is ${inv.order.status.toLowerCase().replaceAll("_", " ")}, so this invoice can not be issued.`);
     if (!posCode) blockers.push("Choose the place of supply above and save.");
     if (!buyerAddress) blockers.push("The customer has no billing address. Add it on the customer's page.");
+    if (!inv.customerGstinOk) blockers.push("The customer's GSTIN does not pass its check, so it was probably mistyped. Correct it on the customer's page.");
+    if (inv.dueDate && dateInput(inv.dueDate) < today) blockers.push("The due date is before today. Change or clear it above and save.");
   }
+  const writtenState = inv.order.shippingState?.trim();
 
   return (
-    <div className="mx-auto grid max-w-5xl gap-8">
+    <div className="mx-auto grid max-w-5xl grid-cols-1 gap-8">
       <Backlink href="/admin/invoices">Invoices</Backlink>
       <PageHeader
         title={inv.number ?? "Draft invoice"}
@@ -69,7 +74,7 @@ export default async function InvoicePage({ params, searchParams }: { params: Pr
           </span>
         }
       />
-      {done && DONE[done] && <Notice kind="success">{DONE[done]}</Notice>}
+      {hasKey(DONE, done) && <Notice kind="success">{DONE[done]}</Notice>}
       {draft && <Notice kind="info">This is a draft, not a tax invoice. The figures below are a preview; they are fixed, and the invoice gets its number, only when the owner issues it.</Notice>}
       {inv.issued && !inv.taxMatchesStored && <Notice kind="error">The tax worked out from this invoice&apos;s items does not match the totals stored when it was issued. Do not send it; check with the developer.</Notice>}
 
@@ -94,6 +99,7 @@ export default async function InvoicePage({ params, searchParams }: { params: Pr
           <p className="mt-1 font-semibold">{inv.issued ? inv.buyerName : customer.organizationName}</p>
           <p className="text-sm">{buyerAddress || <span className="text-red-700">No billing address — <Link className="underline" href={`/admin/customers/${customer.id}`}>add it</Link></span>}</p>
           <p className="text-sm">{buyerGstin ? `GSTIN: ${buyerGstin}` : "GSTIN: not given (unregistered buyer)"}</p>
+          {draft && !inv.customerGstinOk && <p className="mt-1 text-sm font-medium text-red-700">This GSTIN does not pass its check — it was probably mistyped. <Link className="underline" href={`/admin/customers/${customer.id}`}>Correct it</Link> before issuing.</p>}
           {draft && buyerGstin && posCode && stateCodeFromGstin(buyerGstin) !== posCode && (
             <p className="mt-1 text-sm text-muted">Their GSTIN is registered in {stateByCode(stateCodeFromGstin(buyerGstin))?.name ?? "another state"}; the place of supply follows where the goods are delivered.</p>
           )}
@@ -116,6 +122,15 @@ export default async function InvoicePage({ params, searchParams }: { params: Pr
             <div><dt className="text-sm font-semibold text-muted">Place of supply</dt><dd className="mt-1">{inv.placeOfSupply}</dd></div>
             <div><dt className="text-sm font-semibold text-muted">Payment due</dt><dd className="mt-1">{inv.dueDate ? dateText(inv.dueDate) : "No due date"}</dd></div>
           </dl>
+        )}
+        {draft && (
+          <div className="mt-3 grid gap-2 text-sm">
+            <p>
+              <strong>Delivery address on the order:</strong> {inv.deliveryAddress || <span className="text-red-700">none written</span>}
+            </p>
+            {writtenState && !inv.deliveryState && <Notice kind="info">The delivery state on the order (“{writtenState}”) is not a state this system recognises, so no place of supply was suggested. Choose it above.</Notice>}
+            {inv.deliveryState && posCode && inv.deliveryState.code !== posCode && <Notice kind="info">The order is being delivered to {inv.deliveryState.name}, but the place of supply above is {stateByCode(posCode)?.name}. That is right only if the goods really go to {stateByCode(posCode)?.name}.</Notice>}
+          </div>
         )}
         {draft && inv.mode && <p className="mt-3 text-sm text-muted">{inv.mode === "INTRA_STATE" ? "Same state as the seller: the tax is split into CGST and SGST." : "Different state from the seller: the tax is IGST."}</p>}
       </section>
@@ -150,7 +165,7 @@ export default async function InvoicePage({ params, searchParams }: { params: Pr
                 <tr key={item.id}>
                   <th scope="row" className={`${tableClasses.td} font-semibold`}>{item.description}</th>
                   <td className={tableClasses.td}>
-                    {draft && owner ? <LineHsnForm action={saveInvoiceLineHsnAction.bind(null, item.id)} lineKey={item.id} value={item.hsnCode ?? ""} disabled={false} /> : (item.hsnCode ?? <span className="text-muted">—</span>)}
+                    {draft && owner ? <LineHsnForm action={saveInvoiceLineHsnAction.bind(null, item.id)} lineKey={item.id} itemName={item.description} value={item.hsnCode ?? ""} disabled={false} /> : (item.hsnCode ?? <span className="text-muted">—</span>)}
                   </td>
                   <td className={tableClasses.td}>{item.quantity} {item.unit}</td>
                   <td className={tableClasses.td}>{m(item.unitPrice)}</td>
@@ -203,8 +218,8 @@ export default async function InvoicePage({ params, searchParams }: { params: Pr
             <dt className="font-extrabold">Invoice total</dt><dd className="text-right font-extrabold">{m(tax.total)}</dd>
           </dl>
           {totalText && <p className="text-sm"><strong>In words:</strong> {amountInWords(totalText)}</p>}
-          {Number(tax.total) !== Number(orderTotal) && (
-            <p className="text-sm text-muted">The order total was {m(orderTotal)}. A tax invoice works out GST line by line, and for a same-state sale each half (CGST, SGST) is rounded on its own, so it can differ from the order by a paisa or two.</p>
+          {tax.mode === "INTRA_STATE" && Number(tax.total) !== Number(orderTotal) && (
+            <p className="text-sm text-muted">The order total was {m(orderTotal)}. A tax invoice works out GST line by line, and for a same-state sale each half (CGST, SGST) is rounded on its own, so a line can come out a paisa different from the order — and the total with it.</p>
           )}
         </section>
       )}
@@ -213,7 +228,7 @@ export default async function InvoicePage({ params, searchParams }: { params: Pr
         <section aria-labelledby="issue" className="rounded-xl border border-line bg-white p-5">
           <h2 id="issue" className="text-xl font-extrabold">Issue</h2>
           {owner ? (
-            <div className="mt-4"><IssueInvoiceForm action={issueInvoiceAction.bind(null, inv.id)} ready={blockers.length === 0} blocker={blockers.length ? blockers.join(" ") : undefined} /></div>
+            <div className="mt-4"><IssueInvoiceForm action={issueInvoiceAction.bind(null, inv.id)} reviewKey={inv.reviewKey} ready={blockers.length === 0} blocker={blockers.length ? blockers.join(" ") : undefined} /></div>
           ) : (
             <p className="mt-2 text-sm text-muted">Only the owner can issue an invoice. When the details above are right, ask the owner to open this page and issue it.</p>
           )}
@@ -234,13 +249,16 @@ export default async function InvoicePage({ params, searchParams }: { params: Pr
             <p className="mt-3 text-sm text-muted">This system does not send invoices. Print or save the PDF and send it yourself.</p>
           </section>
 
+          {(inv.status !== "VOID" || inv.payments.length > 0) && (
           <section aria-labelledby="payments" className="grid gap-5 rounded-xl border border-line bg-white p-5">
             <h2 id="payments" className="text-xl font-extrabold">Payments</h2>
-            <dl className="grid max-w-md grid-cols-[1fr_auto] gap-x-6 gap-y-1.5">
-              <dt>Invoice total</dt><dd className="text-right">{m(inv.total)}</dd>
-              <dt>Received</dt><dd className="text-right">{m(inv.paid)}</dd>
-              <dt className="font-extrabold">Still owed</dt><dd className="text-right font-extrabold">{m(inv.outstanding)}</dd>
-            </dl>
+            {inv.status !== "VOID" && (
+              <dl className="grid max-w-md grid-cols-[1fr_auto] gap-x-6 gap-y-1.5">
+                <dt>Invoice total</dt><dd className="text-right">{m(inv.total)}</dd>
+                <dt>Received</dt><dd className="text-right">{m(inv.paid)}</dd>
+                <dt className="font-extrabold">Still owed</dt><dd className="text-right font-extrabold">{m(inv.outstanding)}</dd>
+              </dl>
+            )}
             {inv.payments.length === 0 ? (
               <p className="text-sm text-muted">No payments recorded.</p>
             ) : (
@@ -265,7 +283,7 @@ export default async function InvoicePage({ params, searchParams }: { params: Pr
                         <td className={tableClasses.td}>{PAYMENT_METHOD_LABEL[p.method as keyof typeof PAYMENT_METHOD_LABEL] ?? p.method}</td>
                         <td className={tableClasses.td}>{p.reference ?? "—"}{p.notes && <span className="block whitespace-pre-wrap text-xs text-muted">{p.notes}</span>}</td>
                         <td className={tableClasses.td}>{p.recordedBy?.name ?? "—"}</td>
-                        <td className={tableClasses.td}><StatusBadge status={p.status} /></td>
+                        <td className={tableClasses.td}><StatusBadge status={p.status} label={p.status === "FAILED" ? "Reversed" : undefined} /></td>
                       </tr>
                     ))}
                   </tbody>
@@ -276,7 +294,7 @@ export default async function InvoicePage({ params, searchParams }: { params: Pr
             {(inv.status === "ISSUED" || inv.status === "PARTIALLY_PAID") && (
               <div>
                 <h3 className="mb-3 font-bold">Record a payment</h3>
-                <PaymentForm action={recordPaymentAction.bind(null, inv.id)} today={today} outstanding={m(inv.outstanding)} methods={PAYMENT_METHODS.map((value) => ({ value, label: PAYMENT_METHOD_LABEL[value] }))} />
+                <PaymentForm action={recordPaymentAction.bind(null, inv.id)} today={today} minDate={inv.minPaymentDate} outstanding={m(inv.outstanding)} methods={PAYMENT_METHODS.map((value) => ({ value, label: PAYMENT_METHOD_LABEL[value] }))} />
                 <p className="mt-3 text-sm text-muted">Record only money that has already arrived. This system never asks anyone for money or moves it.</p>
               </div>
             )}
@@ -295,6 +313,7 @@ export default async function InvoicePage({ params, searchParams }: { params: Pr
               </details>
             )}
           </section>
+          )}
 
           {owner && inv.status === "ISSUED" && confirmedPayments.length === 0 && (
             <section aria-labelledby="void" className="rounded-xl border border-red-200 bg-white p-5">

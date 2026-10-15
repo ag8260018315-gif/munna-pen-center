@@ -9,10 +9,10 @@ import type { AdminFormState } from "@/lib/validation/admin-catalogue";
 type Action = (prev: AdminFormState, data: FormData) => Promise<AdminFormState>;
 const initial: AdminFormState = {};
 
-export function Checkbox({ id, label, hint, defaultChecked }: { id: string; label: string; hint?: string; defaultChecked?: boolean }) {
+export function Checkbox({ id, label, hint, defaultChecked, error }: { id: string; label: string; hint?: string; defaultChecked?: boolean; error?: string }) {
   return (
     <div className="flex items-start gap-3">
-      <input id={id} name={id} type="checkbox" defaultChecked={defaultChecked} aria-describedby={hint ? `${id}-hint` : undefined} className="mt-1 size-5 rounded border-slate-400" />
+      <input id={id} name={id} type="checkbox" defaultChecked={defaultChecked} aria-invalid={error ? true : undefined} aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined} className="mt-1 size-5 rounded border-slate-400" />
       <label htmlFor={id} className="text-sm font-semibold">
         {label}
         {hint && (
@@ -25,7 +25,20 @@ export function Checkbox({ id, label, hint, defaultChecked }: { id: string; labe
   );
 }
 
-export function FormShell({ action, children, submitLabel }: { action: Action; children: (s: AdminFormState) => React.ReactNode; submitLabel: string }) {
+export function FormShell({
+  action,
+  children,
+  submitLabel,
+  submitAriaLabel,
+  pendingLabel = "Saving…",
+}: {
+  action: Action;
+  children: (s: AdminFormState) => React.ReactNode;
+  submitLabel: string;
+  /** For a button repeated on a page ("Save HSN" on every line): the full name a screen reader should announce. */
+  submitAriaLabel?: string;
+  pendingLabel?: string;
+}) {
   const [state, formAction, pending] = useActionState(action, initial);
   return (
     <form action={formAction} aria-busy={pending} className="grid gap-5">
@@ -37,8 +50,8 @@ export function FormShell({ action, children, submitLabel }: { action: Action; c
         {children(state)}
       </div>
       <div>
-        <Button type="submit" size="lg" disabled={pending}>
-          {pending ? "Saving…" : submitLabel}
+        <Button type="submit" size="lg" disabled={pending} aria-label={submitAriaLabel}>
+          {pending ? pendingLabel : submitLabel}
         </Button>
       </div>
     </form>

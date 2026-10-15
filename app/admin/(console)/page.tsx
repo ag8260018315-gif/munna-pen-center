@@ -24,7 +24,7 @@ export default async function AdminDashboardPage() {
     ? [
         { label: "New enquiries", value: counts.newEnquiries, href: "/admin/enquiries?status=NEW" },
         { label: "Orders to confirm", value: billing!.ordersToConfirm, href: "/admin/orders?status=PENDING_CONFIRMATION" },
-        { label: "Orders in progress", value: billing!.ordersInProgress, href: "/admin/orders" },
+        { label: "Orders being fulfilled", value: billing!.ordersInProgress, href: "/admin/orders" },
         { label: "Draft invoices", value: billing!.draftInvoices, href: "/admin/invoices?status=DRAFT" },
         { label: "Unpaid invoices", value: billing!.unpaidInvoices, href: "/admin/payments" },
         { label: "All enquiries", value: counts.enquiries, href: "/admin/enquiries" },
@@ -65,7 +65,7 @@ export default async function AdminDashboardPage() {
         <h2 id="pipeline-title" className="text-xl font-extrabold">
           Sales pipeline
         </h2>
-        <p className="mt-1 text-sm text-muted">The path every enquiry will follow. Stages marked “Owner approval” cannot happen without the owner.</p>
+        <p className="mt-1 text-sm text-muted">The path every enquiry will follow once the AI agent is connected. Stages marked “Owner approval” cannot happen without the owner. “Planned” here means the agent’s automatic step; you can already do quotations, orders, invoices and payments by hand from the sidebar.</p>
         <ol className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {SALES_STAGES.map((stage, index) => (
             <li key={stage.id} className="flex items-start gap-3 rounded-xl border border-line bg-white p-4">
@@ -130,7 +130,7 @@ export default async function AdminDashboardPage() {
                   </span>
                   <span>
                     <span className="block font-bold">{section.label}</span>
-                    <span className="mt-0.5 block text-sm text-muted">Planned · Phase {section.phase}</span>
+                    <span className="mt-0.5 block text-sm text-muted">{section.available ? "Live" : `Planned · Phase ${section.phase}`}</span>
                   </span>
                 </Link>
               </li>

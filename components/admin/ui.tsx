@@ -65,8 +65,9 @@ const STATUS_STYLE: Record<string, string> = {
   FAILED: "bg-red-100 text-red-800",
 };
 
-export function StatusBadge({ status }: { status: string }) {
-  return <span className={cn("inline-block rounded-full px-2.5 py-0.5 text-xs font-bold", STATUS_STYLE[status] ?? "bg-slate-100 text-slate-700")}>{status.replaceAll("_", " ")}</span>;
+/** `label` replaces the text when the stored status name reads badly to a person (a reversed payment is stored as FAILED). */
+export function StatusBadge({ status, label }: { status: string; label?: string }) {
+  return <span className={cn("inline-block rounded-full px-2.5 py-0.5 text-xs font-bold", STATUS_STYLE[status] ?? "bg-slate-100 text-slate-700")}>{label ?? status.replaceAll("_", " ")}</span>;
 }
 
 export function YesNo({ value, yes = "Yes", no = "No" }: { value: boolean; yes?: string; no?: string }) {

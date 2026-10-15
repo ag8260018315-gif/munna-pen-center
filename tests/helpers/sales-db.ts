@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+import { gstinCheckCharacter } from "@/lib/gstin";
 
 /**
  * Shared set-up for the orders / invoices / payments tests, which run against a real (throwaway) PostgreSQL:
@@ -7,7 +8,12 @@ import { vi } from "vitest";
  * Test-only. The GSTINs used with it are made-up values, never the business's.
  */
 export const TEST_ORG = "STest ";
-export const TEST_SUPPLIER_GSTIN = "20ABCDE1234F1Z5"; // made up; state code 20 = Jharkhand
+// Made-up numbers with a correct check character (so they pass the same checks a real GSTIN does); state code 20 = Jharkhand.
+const withCheck = (body: string) => body + gstinCheckCharacter(body);
+export const TEST_SUPPLIER_GSTIN = withCheck("20ABCDE1234F1Z");
+export const TEST_BUYER_GSTIN = withCheck("20AAAAA0000A1Z");
+export const TEST_OTHER_STATE_GSTIN = withCheck("27AAAAA0000A1Z");
+export const testGstin = withCheck;
 
 export interface SalesTestState {
   role: "OWNER" | "STAFF";
@@ -15,14 +21,16 @@ export interface SalesTestState {
   userId: string;
   businessGstin: string | null;
   legalName: string | null;
+  /** The state the business address is in (default: the real site setting). Changed only to test a Union Territory seller. */
+  region: string | undefined;
 }
 
 export async function setupSalesDb(url: string) {
-  const state: SalesTestState = { role: "OWNER", signedIn: true, userId: "u", businessGstin: TEST_SUPPLIER_GSTIN, legalName: null };
+  const state: SalesTestState = { role: "OWNER", signedIn: true, userId: "u", businessGstin: TEST_SUPPLIER_GSTIN, legalName: null, region: undefined };
   vi.stubEnv("DATABASE_URL", url);
   vi.resetModules();
   vi.doMock("next/cache", () => ({ revalidatePath: vi.fn() }));
-  const session = () => ({ userId: state.userId, email: "t@example.test", name: "T", role: state.role, isPreview: false });
+  const session = () => ({ userId: state.userId, email: "t@example.test", name: "STest Owner", role: state.role, isPreview: false });
   vi.doMock("@/lib/auth/guard", () => ({
     requireAdmin: async () => {
       if (!state.signedIn) throw new Error("NEXT_REDIRECT:/admin/login");
@@ -37,7 +45,7 @@ export async function setupSalesDb(url: string) {
   const { buildSupplier } = await import("@/lib/domain/supplier");
   vi.doMock("@/lib/business", () => ({
     getBusinessGstin: () => state.businessGstin,
-    getInvoiceSupplier: () => buildSupplier({ gstin: state.businessGstin, legalName: state.legalName }),
+    getInvoiceSupplier: () => buildSupplier({ gstin: state.businessGstin, legalName: state.legalName, region: state.region }),
   }));
 
   const db = (await import("@/lib/db/client")).getDb();
