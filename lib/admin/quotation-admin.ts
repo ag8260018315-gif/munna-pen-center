@@ -83,6 +83,7 @@ export async function getQuotation(id: string) {
     include: {
       customer: true,
       enquiry: { include: { items: true } },
+      order: { select: { id: true, number: true } },
       items: { orderBy: { id: "asc" }, include: { product: { select: { id: true, name: true } } } },
     },
   });

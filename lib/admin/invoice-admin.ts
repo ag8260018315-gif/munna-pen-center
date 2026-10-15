@@ -17,7 +17,7 @@ import {
   UTGST_CODES,
   type TaxMode,
 } from "@/lib/domain/gst";
-import { financialYearOf, fromPaise, MAX_RUPEES, toPaise } from "@/lib/domain/quote-math";
+import { financialYearOf, formatRupees, fromPaise, MAX_RUPEES, toPaise } from "@/lib/domain/quote-math";
 import { joinAddress } from "@/lib/domain/supplier";
 import { fieldErrors } from "@/lib/validation/admin-catalogue";
 import { invoiceDraftSchema, invoiceLineHsnSchema, reasonSchema, paymentSchema } from "@/lib/validation/admin-sales";
@@ -94,6 +94,19 @@ export async function listInvoices(params: { status?: string; q?: string; page?:
     }),
   ]);
   return { items, total, page, pages: Math.max(1, Math.ceil(total / PAGE_SIZE)) };
+}
+
+/** Numbers for the dashboard: what needs someone's attention in orders and invoices. */
+export async function getBillingCounts() {
+  await requireAdmin();
+  const db = getDb();
+  const [ordersToConfirm, ordersInProgress, draftInvoices, unpaidInvoices] = await Promise.all([
+    db.order.count({ where: { status: "PENDING_CONFIRMATION" } }),
+    db.order.count({ where: { status: { in: ["CONFIRMED", "PROCESSING", "DISPATCHED"] } } }),
+    db.invoice.count({ where: { status: { in: ["DRAFT", "PENDING_APPROVAL"] } } }),
+    db.invoice.count({ where: { status: { in: ["ISSUED", "PARTIALLY_PAID"] } } }),
+  ]);
+  return { ordersToConfirm, ordersInProgress, draftInvoices, unpaidInvoices };
 }
 
 /** Confirmed (or later) orders that have no live invoice yet. */
@@ -439,7 +452,7 @@ export async function recordPayment(invoiceId: string, raw: Record<string, strin
       const total = paiseOf(invoice.total);
       const paid = invoice.payments.reduce((sum, p) => sum + paiseOf(p.amount), 0n);
       const owed = total - paid;
-      if (amount > owed) return { ok: false, message: `That is more than is owed. Outstanding: ₹${fromPaise(owed)}.`, fieldErrors: { amount: `At most ₹${fromPaise(owed)}` } };
+      if (amount > owed) return { ok: false, message: `That is more than is owed. Outstanding: ${formatRupees(fromPaise(owed))}.`, fieldErrors: { amount: `At most ${formatRupees(fromPaise(owed))}` } };
       await tx.payment.create({
         data: { invoiceId, amount: fromPaise(amount), method: input.method, status: "CONFIRMED", reference: input.reference, paidAt, notes: input.notes, recordedById: session.userId },
       });

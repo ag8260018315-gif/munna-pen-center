@@ -2,7 +2,9 @@ import { Printer } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { createOrderAction } from "@/app/actions/admin-billing";
 import { addQuoteLineAction, quoteStatusAction, removeQuoteLineAction, saveQuoteHeaderAction, updateQuoteLineAction } from "@/app/actions/admin-sales";
+import { ActionButton } from "@/components/admin/billing-forms";
 import { Backlink } from "@/components/admin/backlink";
 import { LineForm, QuoteHeaderForm, StatusButton } from "@/components/admin/sales-forms";
 import { DatabaseRequired, Notice, PageHeader, StatusBadge, tableClasses } from "@/components/admin/ui";
@@ -211,6 +213,20 @@ export default async function QuotePage({ params, searchParams }: { params: Prom
             </>
           )}
         </div>
+        {quote.status === "ACCEPTED" && (
+          <div className="mt-5 border-t border-line pt-5">
+            {quote.order ? (
+              <p>
+                Order: <Link className="font-semibold text-brand-800 underline" href={`/admin/orders/${quote.order.id}`}>{quote.order.number}</Link>
+              </p>
+            ) : (
+              <>
+                <ActionButton action={createOrderAction.bind(null, quote.id)} label="Create order" />
+                <p className="mt-2 text-sm text-muted">Copies these items and totals into an order. The owner then confirms it.</p>
+              </>
+            )}
+          </div>
+        )}
         {!owner && <p className="mt-4 text-sm text-muted">Only the owner can mark a quotation as sent, accepted, declined or cancelled, and only the owner can enter prices, GST and HSN.</p>}
         {owner && draft && <p className="mt-4 text-sm text-muted">“Mark as sent” is available once every item has a price and a GST rate. After that the items can no longer be edited.</p>}
       </section>

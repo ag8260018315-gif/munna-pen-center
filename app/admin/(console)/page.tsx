@@ -5,6 +5,7 @@ import { AGENT_ACTION_POLICY, SALES_STAGES } from "@/lib/ai-sales";
 import { ADMIN_SECTIONS, adminHref } from "@/lib/admin/sections";
 import { DatabaseRequired } from "@/components/admin/ui";
 import { getDashboardCounts } from "@/lib/admin/catalogue-admin";
+import { getBillingCounts } from "@/lib/admin/invoice-admin";
 import { requireAdmin } from "@/lib/auth/guard";
 import { isDatabaseConfigured } from "@/lib/db/client";
 import { cn } from "@/lib/cn";
@@ -17,10 +18,15 @@ const approvalActions = Object.entries(AGENT_ACTION_POLICY)
 
 export default async function AdminDashboardPage() {
   const session = await requireAdmin();
-  const counts = isDatabaseConfigured() ? await getDashboardCounts() : null;
+  const configured = isDatabaseConfigured();
+  const [counts, billing] = configured ? await Promise.all([getDashboardCounts(), getBillingCounts()]) : [null, null];
   const tiles = counts
     ? [
         { label: "New enquiries", value: counts.newEnquiries, href: "/admin/enquiries?status=NEW" },
+        { label: "Orders to confirm", value: billing!.ordersToConfirm, href: "/admin/orders?status=PENDING_CONFIRMATION" },
+        { label: "Orders in progress", value: billing!.ordersInProgress, href: "/admin/orders" },
+        { label: "Draft invoices", value: billing!.draftInvoices, href: "/admin/invoices?status=DRAFT" },
+        { label: "Unpaid invoices", value: billing!.unpaidInvoices, href: "/admin/payments" },
         { label: "All enquiries", value: counts.enquiries, href: "/admin/enquiries" },
         { label: "Active products", value: counts.activeProducts, href: "/admin/products?status=ACTIVE" },
         { label: "Draft products", value: counts.draftProducts, href: "/admin/products?status=DRAFT" },
@@ -34,7 +40,7 @@ export default async function AdminDashboardPage() {
     <div className="mx-auto grid max-w-6xl gap-10">
       <div>
         <h1 className="text-3xl font-extrabold">Admin dashboard</h1>
-        <p className="mt-2 max-w-3xl text-muted">Enquiries, products, brands, categories and stock are live. Quotations, orders, invoices and payments come next.</p>
+        <p className="mt-2 max-w-3xl text-muted">Enquiries, products, quotations, orders, GST invoices and payments are live. The AI sales agent comes later.</p>
       </div>
 
       {counts ? (
