@@ -272,6 +272,13 @@ export async function clearProductPicture(id: string): Promise<Result<{ id: stri
   }
 }
 
+/** For the bulk picture upload: every product with just enough to match a file name to it. */
+export async function listProductsForPictures() {
+  await requireAdmin();
+  const rows = await getDb().product.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, slug: true, sku: true, imageUrl: true }, take: 2000 });
+  return rows.map((p) => ({ id: p.id, name: p.name, slug: p.slug, sku: p.sku, hasPicture: p.imageUrl !== null }));
+}
+
 // ───────────────────────────── brands ─────────────────────────────
 
 const BRAND_CONFLICTS: Record<string, [string, string]> = { slug: ["slug", "Another brand already uses this web address"], name: ["name", "A brand with this name already exists"] };

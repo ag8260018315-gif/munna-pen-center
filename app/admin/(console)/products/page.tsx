@@ -26,7 +26,13 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
       <PageHeader
         title="Products"
         intro="Add and edit products. Only Active products appear on the website, and the website never shows prices."
-        actions={<ButtonLink href="/admin/products/new">Add product</ButtonLink>}
+        actions={
+          <>
+            <ButtonLink href="/admin/products/new">Add product</ButtonLink>
+            <ButtonLink href="/admin/products/import" variant="secondary">Import from spreadsheet</ButtonLink>
+            <ButtonLink href="/admin/products/pictures" variant="secondary">Add many pictures</ButtonLink>
+          </>
+        }
       />
       {sp.saved && <Notice kind="success">Saved.</Notice>}
       {sp.failed && <Notice kind="error">That change could not be made. Please try again.</Notice>}
