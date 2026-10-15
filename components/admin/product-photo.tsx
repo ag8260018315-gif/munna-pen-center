@@ -6,8 +6,7 @@ import { useState } from "react";
 import { Notice } from "@/components/admin/ui";
 import { TextField } from "@/components/forms/fields";
 import { Button } from "@/components/ui/button";
-
-const MAX_BYTES = 8 * 1024 * 1024;
+import { MAX_ORIGINAL_BYTES, prepareImage, uploadFailureMessage } from "@/lib/client/prepare-image";
 
 interface Props {
   productId: string;
@@ -31,7 +30,7 @@ export function ProductPhoto({ productId, productName, imageUrl, imageAlt, stora
     const file = data.get("file");
     const errors: typeof fieldErrors = {};
     if (!(file instanceof File) || file.size === 0) errors.file = "Choose a picture first";
-    else if (file.size > MAX_BYTES) errors.file = "That picture is larger than 8 MB";
+    else if (file.size > MAX_ORIGINAL_BYTES) errors.file = "That picture is larger than 30 MB";
     if (String(data.get("alt") ?? "").trim().length < 3) errors.imageAlt = "Describe the picture in a few words";
     setFieldErrors(errors);
     if (errors.file || errors.imageAlt) return;
@@ -40,11 +39,18 @@ export function ProductPhoto({ productId, productName, imageUrl, imageAlt, stora
     setBusy(true);
     setMessage(null);
     try {
+      const prepared = await prepareImage(file as File); // shrunk in the browser first: the hosting platform refuses uploads over 4.5 MB
+      if (!prepared.ok) {
+        setFieldErrors({ file: prepared.message });
+        setMessage({ kind: "error", text: prepared.message });
+        return;
+      }
+      data.set("file", prepared.file);
       const response = await fetch("/api/admin/product-image", { method: "POST", body: data });
       const result = (await response.json().catch(() => ({}))) as { ok?: boolean; error?: string; field?: string; kilobytes?: number };
       if (!response.ok) {
         if (result.field === "file" || result.field === "imageAlt") setFieldErrors({ [result.field]: result.error });
-        setMessage({ kind: "error", text: result.error ?? "The picture could not be saved." });
+        setMessage({ kind: "error", text: uploadFailureMessage(response.status, result.error) });
         return;
       }
       setMessage({ kind: "success", text: `Picture saved (${result.kilobytes} KB). It is on the website now.` });
@@ -113,7 +119,7 @@ export function ProductPhoto({ productId, productName, imageUrl, imageAlt, stora
               aria-describedby={fieldErrors.file ? "photo-file-error" : "photo-file-hint"}
               className="block w-full max-w-md text-sm file:mr-3 file:rounded-lg file:border file:border-line file:bg-white file:px-3 file:py-2 file:font-semibold"
             />
-            <p id="photo-file-hint" className="mt-1.5 text-sm text-muted">JPG, PNG or WebP, up to 8 MB. A clear photo on a plain light background works best. Hidden camera data (such as location) is removed automatically.</p>
+            <p id="photo-file-hint" className="mt-1.5 text-sm text-muted">JPG, PNG or WebP. Large pictures are shrunk on your computer before they are sent. A clear photo on a plain light background works best. Hidden camera data (such as location) is removed automatically.</p>
             {fieldErrors.file && <p id="photo-file-error" className="mt-1.5 text-sm font-medium text-red-700">{fieldErrors.file}</p>}
           </div>
           <TextField id="alt" label="Description of the picture" required maxLength={200} hint="For people who can not see it and for search engines, e.g. “Blue ball pen, box of 10”." error={fieldErrors.imageAlt} defaultValue={imageAlt ?? ""} />

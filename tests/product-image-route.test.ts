@@ -109,6 +109,19 @@ describe("POST /api/admin/product-image", () => {
     expect(del).not.toHaveBeenCalled();
   });
 
+  it("turns an unexpected crash into a readable JSON answer (never a blank platform error page) and logs it", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    getPicture.mockRejectedValue(new Error("connection reset by peer"));
+    const response = await POST(await postRequest());
+    expect(response.status).toBe(500);
+    expect(response.headers.get("content-type")).toContain("application/json");
+    const body = await response.json();
+    expect(body).toMatchObject({ error: expect.stringContaining("Something went wrong") });
+    expect(JSON.stringify(body)).not.toContain("connection reset");
+    expect(log).toHaveBeenCalled();
+    log.mockRestore();
+  });
+
   it("cleans up the uploaded file when the database write fails, and reports a storage outage", async () => {
     setPicture.mockResolvedValue({ ok: false, message: "Could not save. Please try again." });
     const failed = await POST(await postRequest());

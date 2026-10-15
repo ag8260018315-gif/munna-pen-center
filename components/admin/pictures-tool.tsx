@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Notice, tableClasses } from "@/components/admin/ui";
 import { Button } from "@/components/ui/button";
+import { MAX_ORIGINAL_BYTES, prepareImage, uploadFailureMessage } from "@/lib/client/prepare-image";
 
 export interface PictureProduct {
   id: string;
@@ -14,7 +15,6 @@ export interface PictureProduct {
   hasPicture: boolean;
 }
 
-const MAX_BYTES = 8 * 1024 * 1024;
 const TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 /** Same rule as the server's slugs: lower-case words joined by hyphens ("Blue Pen.JPG" → "blue-pen"). */
@@ -61,7 +61,7 @@ export function PicturesTool({ products }: { products: PictureProduct[] }) {
     const used = new Set<string>();
     return files.map((file): Plan => {
       if (!TYPES.includes(file.type)) return { kind: "problem", file, reason: "Not a JPG, PNG or WebP picture." };
-      if (file.size > MAX_BYTES) return { kind: "problem", file, reason: "Larger than 8 MB." };
+      if (file.size > MAX_ORIGINAL_BYTES) return { kind: "problem", file, reason: "Larger than 30 MB." };
       const product = index.get(stemToSlug(file.name));
       if (!product) return { kind: "problem", file, reason: "No product has this web address or SKU. Rename the file after the product, e.g. blue-pen.jpg." };
       if (used.has(product.id)) return { kind: "skip", file, product, reason: "Another file in this list is already for this product." };
@@ -88,14 +88,21 @@ export function PicturesTool({ products }: { products: PictureProduct[] }) {
       state[i] = "uploading";
       setRowState({ ...state });
       try {
+        const prepared = await prepareImage(plan.file); // shrunk in the browser first: the hosting platform refuses uploads over 4.5 MB
+        if (!prepared.ok) {
+          state[i] = { error: prepared.message };
+          failed++;
+          setRowState({ ...state });
+          continue;
+        }
         const body = new FormData();
         body.set("productId", plan.product.id);
         body.set("alt", `${representative ? "Representative image: " : ""}${plan.product.name}`.slice(0, 200));
-        body.set("file", plan.file);
+        body.set("file", prepared.file);
         const response = await fetch("/api/admin/product-image", { method: "POST", body });
         const data = (await response.json().catch(() => ({}))) as { error?: string };
         if (!response.ok) {
-          state[i] = { error: data.error ?? "Could not upload." };
+          state[i] = { error: uploadFailureMessage(response.status, data.error) };
           failed++;
           if (response.status === 401 || response.status === 403 || response.status === 503) {
             setRowState({ ...state });
@@ -148,7 +155,7 @@ export function PicturesTool({ products }: { products: PictureProduct[] }) {
           }}
           className="block w-full max-w-md text-sm file:mr-3 file:rounded-lg file:border file:border-line file:bg-white file:px-3 file:py-2 file:font-semibold"
         />
-        <p className="mt-1.5 text-sm text-muted">Up to 100 at a time, 8 MB each.</p>
+        <p className="mt-1.5 text-sm text-muted">Up to 100 at a time. Large pictures are shrunk on your computer before they are sent.</p>
       </div>
 
       <fieldset className="grid gap-3">
