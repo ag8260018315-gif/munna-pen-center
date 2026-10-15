@@ -12,7 +12,7 @@ The site never invents facts, so anything not supplied is either hidden or shown
 ## Business details (`lib/config/site.ts`, `.env`)
 
 - [x] **Phone / WhatsApp** — main number 79790 25165 (supplied). **Second number** 80513 88653 (also on WhatsApp, confirmed by the owner; it has its own chat link next to it). **Address** — Railway Cinema Road, Purana Bazar, Dhanbad, Jharkhand (supplied). **Email** — supplied.
-- [x] **GSTIN** — the website says only “GST Registered” and never shows the number. The number is not in the code; when invoices are built, set the server-only `BUSINESS_GSTIN` environment variable (Vercel → Settings → Environment Variables).
+- [x] **GSTIN** — the website says only “GST Registered” and never shows the number. The number is not in the code; to issue tax invoices, set the server-only `BUSINESS_GSTIN` environment variable (Vercel → Settings → Environment Variables) and redeploy. `BUSINESS_LEGAL_NAME` is optional.
 - [x] **PIN code** — 826001 (supplied); shown in the address and in the search-engine data.
 - [ ] **Business hours** — optional.
 - [ ] **Social profiles** — optional.

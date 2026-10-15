@@ -46,7 +46,7 @@ npm run dev                     # http://localhost:3000
 
 ### What Version 1 deliberately does *not* include
 
-No AI agent, no WhatsApp Business API, no payments, no invoices, no online prices or stock. The admin can sign in and manage products, brands, categories, stock and enquiries ([`docs/ADMIN.md`](docs/ADMIN.md)); quotations, orders, invoices and payments are still “Soon”, and the admin **returns 404 in production** until a database is connected. These are the next phases — the code is structured for them but none of it is faked.
+No AI agent, no WhatsApp Business API, no online payments (a person records money that has arrived), no online prices or stock. The admin can sign in and manage products, brands, categories, stock, enquiries, quotations, orders, GST tax invoices and payments ([`docs/ADMIN.md`](docs/ADMIN.md)); the admin **returns 404 in production** until a database is connected. These are the next phases — the code is structured for them but none of it is faked.
 
 ---
 
@@ -91,7 +91,7 @@ Security headers (HSTS in production, `nosniff`, frame denial, referrer and perm
 
 **About the product list:** `data/products.ts` holds only the **five products the owner identified**; `data/categories.ts` the 23 categories and `data/brands.ts` the 20 brands (a separate list — brands are not products, nothing is attached to them). There are **no SKUs, prices, GST rates, HSN codes, stock or pack sizes** anywhere in the repo. The database schema has a place for all of them (`Product`: SKU, brand, category, unit, pack size, purchase / wholesale / retail price, GST rate, HSN, stock, minimum order quantity, image, active status) so the owner can add real products later from the admin. “Cello Tape” and “Adhesive Tape” are product types (categories), not brands.
 
-**GSTIN:** the website only says “GST Registered” — it never prints the number. The number itself is deliberately *not* in the code; it will live in the server-only `BUSINESS_GSTIN` environment variable and is used for invoices later (it can be left unset for now).
+**GSTIN:** the website only says “GST Registered” — it never prints the number. The number itself is deliberately *not* in the code; it lives in the server-only `BUSINESS_GSTIN` environment variable and is printed on tax invoices (until it is set, invoices can be drafted but not issued).
 
 **Logo:** a fountain-pen nib resting on an ink line, on an indigo tile. Outlined SVG lockups (no font dependency, safe for print) are in `public/brand/` (`logo.svg`, `logo-on-dark.svg`, `logo-mark.svg`).
 
