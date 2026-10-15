@@ -11,6 +11,33 @@ export const normaliseEmail = (email: string) => email.trim().toLowerCase();
 
 export type LoginResult = { ok: true; token: string; expiresAt: Date } | { ok: false };
 
+/** Counts a wrong password; the fifth in a row locks the account. Atomic increment so parallel guesses can not slip under the limit. */
+async function recordFailedPassword(db: PrismaClient, userId: string, now: Date) {
+  const { failedLoginCount } = await db.adminUser.update({ where: { id: userId }, data: { failedLoginCount: { increment: 1 } }, select: { failedLoginCount: true } });
+  if (failedLoginCount >= MAX_FAILED_LOGINS) {
+    await db.adminUser.update({ where: { id: userId }, data: { failedLoginCount: 0, lockedUntil: new Date(now.getTime() + LOCK_MS) } });
+  }
+}
+
+/**
+ * Re-checks the password of an already signed-in user (before a password change). Wrong guesses count towards the same
+ * lock as the sign-in page, so a stolen session can not be used to guess the password.
+ */
+export async function verifyUserPassword(db: PrismaClient, userId: string, password: string, now = new Date()): Promise<boolean> {
+  const user = await db.adminUser.findUnique({ where: { id: userId } });
+  const locked = Boolean(user?.lockedUntil && user.lockedUntil > now);
+  if (!user || !user.isActive || !user.passwordHash || locked) {
+    await verifyAgainstDummy(password);
+    return false;
+  }
+  if (!(await verifyPassword(password, user.passwordHash))) {
+    await recordFailedPassword(db, user.id, now);
+    return false;
+  }
+  if (user.failedLoginCount > 0) await db.adminUser.update({ where: { id: user.id }, data: { failedLoginCount: 0 } });
+  return true;
+}
+
 /**
  * Checks an e-mail and password. Every failure looks the same to the caller (unknown e-mail, wrong password, locked,
  * deactivated, no password set) and takes about the same time, so the form never reveals which accounts exist.
@@ -30,11 +57,7 @@ export async function attemptLogin(
   }
 
   if (!(await verifyPassword(password, user.passwordHash))) {
-    // Atomic increment so parallel guesses can not slip under the limit.
-    const { failedLoginCount } = await db.adminUser.update({ where: { id: user.id }, data: { failedLoginCount: { increment: 1 } }, select: { failedLoginCount: true } });
-    if (failedLoginCount >= MAX_FAILED_LOGINS) {
-      await db.adminUser.update({ where: { id: user.id }, data: { failedLoginCount: 0, lockedUntil: new Date(now.getTime() + LOCK_MS) } });
-    }
+    await recordFailedPassword(db, user.id, now);
     return { ok: false };
   }
 

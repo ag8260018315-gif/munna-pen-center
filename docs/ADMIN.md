@@ -10,6 +10,8 @@ Address: `https://<your-site>/admin`. It only works once the database is connect
 | Products | Search and filter; add; edit; **Deactivate / Publish**. Fields: name, category, brand, descriptions, SKU, unit, pack size, minimum order quantity, stock, purchase / wholesale / retail price, GST %, HSN, tags, status, featured |
 | Brands | Add, edit, deactivate; choose whether a brand is shown on the website |
 | Categories | Add, edit, deactivate; summary, description, order |
+| Users (owner only) | Add staff accounts, set a new password for someone who forgot theirs, deactivate / reactivate, unlock |
+| My account (everyone) | Change your own password; sign out on other devices |
 | Product pictures | On a product's page: upload, replace or remove one picture (needs the one-time setup in [`PHOTOS.md`](PHOTOS.md)) |
 | Inventory | Type a stock number per product and press Save. Empty = "not tracked", 0 = out of stock |
 | Enquiries | Read every website enquiry (newest first), filter by status, call or e-mail the sender, and **Create quotation** from it |
@@ -57,9 +59,27 @@ Never send the setup key or the password to anyone — not even to me.
 - The browser keeps only a random token in an HttpOnly, Secure, SameSite cookie; the database keeps only a hash of it. A session ends after 12 hours, after 2 hours of no use, on *Sign out*, or when the account is deactivated.
 - Every admin page, form and data function checks the sign-in again by itself.
 
+## Staff accounts
+
+1. *Users → Add staff account*: name, e-mail, a starting password (12+ characters). Tell them the password **in person** and ask them to change it under **My account**. New accounts are always **Staff**; a second owner can only be added directly in the database.
+2. Staff can work with products, brands, categories, stock, pictures, customers, enquiries and **draft** quotations. They can **not** enter prices, GST or HSN, send or close quotations, or see the Users screens.
+3. Forgot a password? Open the person under *Users* → **Set a new password**. They are signed out everywhere and any lock is lifted.
+4. **Deactivate** signs someone out at once and stops them signing in. Accounts are never deleted. You can not deactivate yourself or the last active owner.
+5. Changing your own password (My account) needs the current password, keeps you signed in here and signs out every other device. A wrong current password counts towards the same 15-minute lock as a wrong sign-in.
+
+## If the owner forgets their password
+
+There is no e-mail reset (the system has no e-mail service). Instead, whoever controls your Vercel settings can recover the account:
+
+1. In Vercel add `ADMIN_SETUP_TOKEN` = a long random key (**at least 16 characters**, 24+ is better; Sensitive on), then redeploy.
+2. Open `/admin/reset` (the sign-in page also shows a link while the key exists). Enter the key, the account's e-mail and a new password.
+3. Everyone on that account is signed out; sign in with the new password.
+4. **Delete `ADMIN_SETUP_TOKEN` in Vercel and redeploy.** Anyone who learns that key can reset any password.
+
 ## Known limits (honest list)
 
-- **No password reset or second staff account screen yet.** If you forget the password, the account must be fixed in the Supabase SQL Editor (ask me for the exact steps). Adding staff accounts is the next admin task.
+- **No password reset by e-mail**, and no forced password change on first sign-in: ask new staff to change the starting password themselves.
+- **No activity log yet** (who changed what).
 - **No two-factor sign-in yet.** Use a strong, unique password.
 - **Product pictures** need a one-time Supabase Storage setup: see [`PHOTOS.md`](PHOTOS.md).
 - The login lock is per account, not per internet address; add rate limiting at Vercel before launch if the admin address becomes widely known.

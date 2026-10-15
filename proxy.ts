@@ -8,7 +8,7 @@ import { NextResponse, type NextRequest } from "next/server";
  */
 export type ProxyDecision = "next" | "login" | "not-found";
 
-const PUBLIC_ADMIN_PATHS = new Set(["/admin/login", "/admin/setup"]);
+const PUBLIC_ADMIN_PATHS = new Set(["/admin/login", "/admin/setup", "/admin/reset"]);
 
 export function decideAdminAccess(input: { pathname: string; hasSessionCookie: boolean; databaseConfigured: boolean; production: boolean }): ProxyDecision {
   // Without a database there is nothing to sign in to. In production the area stays closed.

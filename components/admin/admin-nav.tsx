@@ -6,12 +6,12 @@ import { cn } from "@/lib/cn";
 import { ADMIN_ICONS } from "@/components/admin/admin-icons";
 import { ADMIN_SECTIONS, adminHref } from "@/lib/admin/sections";
 
-export function AdminNav() {
+export function AdminNav({ role = "STAFF" }: { role?: "OWNER" | "STAFF" }) {
   const pathname = usePathname();
   return (
     <nav aria-label="Admin sections">
       <ul className="grid gap-1">
-        {ADMIN_SECTIONS.map((section) => {
+        {ADMIN_SECTIONS.filter((section) => !section.ownerOnly || role === "OWNER").map((section) => {
           const href = adminHref(section);
           const active = href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
           const Icon = ADMIN_ICONS[section.icon];

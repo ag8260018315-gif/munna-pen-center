@@ -18,6 +18,7 @@ describe("admin section registry", () => {
       "Payments",
       "Follow-ups",
       "AI Sales Agent",
+      "Users",
       "Settings",
     ]);
   });
@@ -95,6 +96,7 @@ describe("proxy decision (first filter only)", () => {
     expect(decideAdminAccess({ ...base, pathname: "/admin/products/new" })).toBe("login");
     expect(decideAdminAccess({ ...base, pathname: "/admin/login" })).toBe("next");
     expect(decideAdminAccess({ ...base, pathname: "/admin/setup/" })).toBe("next");
+    expect(decideAdminAccess({ ...base, pathname: "/admin/reset" })).toBe("next");
     expect(decideAdminAccess({ ...base, pathname: "/admin/login/../products" })).toBe("login");
   });
 

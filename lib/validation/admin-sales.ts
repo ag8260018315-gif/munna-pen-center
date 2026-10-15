@@ -80,3 +80,31 @@ export type LineInput = z.infer<typeof lineSchema>;
 
 export const QUOTE_STATUS_ACTIONS = ["SENT", "ACCEPTED", "REJECTED", "EXPIRED", "CANCELLED"] as const;
 export type QuoteStatusAction = (typeof QUOTE_STATUS_ACTIONS)[number];
+
+// ───────────────────────────── admin users ─────────────────────────────
+
+export const newStaffSchema = z
+  .object({
+    name: z.string().trim().min(2, "Enter their name").max(100),
+    email: z.string().trim().pipe(z.email("Enter a valid e-mail").max(254)),
+    password: z.string().max(128),
+    confirm: z.string().max(128),
+  })
+  .refine((v) => v.password === v.confirm, { path: ["confirm"], message: "The two passwords do not match" });
+
+export const setPasswordSchema = z
+  .object({ password: z.string().max(128), confirm: z.string().max(128) })
+  .refine((v) => v.password === v.confirm, { path: ["confirm"], message: "The two passwords do not match" });
+
+export const changeOwnPasswordSchema = z
+  .object({ current: z.string().min(1, "Enter your current password").max(128), password: z.string().max(128), confirm: z.string().max(128) })
+  .refine((v) => v.password === v.confirm, { path: ["confirm"], message: "The two passwords do not match" });
+
+export const recoverySchema = z
+  .object({
+    key: z.string().min(1, "Enter the setup key").max(300),
+    email: z.string().trim().pipe(z.email("Enter a valid e-mail").max(254)),
+    password: z.string().max(128),
+    confirm: z.string().max(128),
+  })
+  .refine((v) => v.password === v.confirm, { path: ["confirm"], message: "The two passwords do not match" });

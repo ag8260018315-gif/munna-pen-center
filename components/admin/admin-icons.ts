@@ -14,6 +14,7 @@ import {
   Settings,
   ShoppingCart,
   Tags,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import type { AdminIcon } from "@/lib/admin/sections";
@@ -38,5 +39,6 @@ export const ADMIN_ICONS: Record<AdminIcon, LucideIcon> = {
   payments: CreditCard,
   "follow-ups": Bell,
   ai: Bot,
+  users: Users,
   settings: Settings,
 };
