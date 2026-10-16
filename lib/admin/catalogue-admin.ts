@@ -2,6 +2,7 @@ import "server-only";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/guard";
 import { getDb } from "@/lib/db/client";
+import { clampPage } from "@/lib/db/paging";
 import { invalidateCatalogueSnapshot } from "@/lib/repositories/prisma-catalogue";
 import {
   brandSchema,
@@ -87,7 +88,7 @@ export async function listProducts(params: { q?: string; status?: string; catego
   if (q) where.OR = [{ name: { contains: q, mode: "insensitive" } }, { sku: { contains: q, mode: "insensitive" } }, { slug: { contains: q, mode: "insensitive" } }];
   if (params.status === "DRAFT" || params.status === "ACTIVE" || params.status === "INACTIVE") where.status = params.status;
   if (params.categoryId) where.categoryId = params.categoryId;
-  const page = Math.max(1, Math.floor(params.page ?? 1));
+  const page = clampPage(params.page);
   const db = getDb();
   const [total, rows] = await Promise.all([
     db.product.count({ where }),
@@ -347,7 +348,7 @@ export async function listEnquiries(params: { page?: number; status?: string }) 
   await requireAdmin();
   const where: Prisma.EnquiryWhereInput = {};
   if (["NEW", "IN_REVIEW", "QUOTED", "WON", "LOST", "SPAM"].includes(params.status ?? "")) where.status = params.status as never;
-  const page = Math.max(1, Math.floor(params.page ?? 1));
+  const page = clampPage(params.page);
   const db = getDb();
   const [total, items] = await Promise.all([
     db.enquiry.count({ where }),

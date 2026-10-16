@@ -99,6 +99,7 @@ export function financialYearOf(date: Date): string {
 }
 
 export const quotationNumber = (financialYear: string, sequence: number) => `QT-${financialYear}-${String(sequence).padStart(4, "0")}`;
+export const orderNumber = (financialYear: string, sequence: number) => `ORD-${financialYear}-${String(sequence).padStart(4, "0")}`;
 
 /** "1179998820.00" → "₹11,79,99,88,20.00"-style Indian grouping, from the exact decimal string (no floating point). */
 export function formatRupees(amount: string | null | undefined): string {

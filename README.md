@@ -39,14 +39,14 @@ npm run dev                     # http://localhost:3000
 - **Catalogue** — the 23 categories and 20 brands the owner listed, and the five products identified so far (glue guns, glue sticks, cello tape, adhesive tape, calculators); more are added by the owner later (see below). Cards show image, name, category, description and **“Get Wholesale Price” / “Request Quote”** — never a price. A category with nothing listed yet says so, offers a quote request, and is kept out of search results.
 - **Enquiry list** — visitors tap **Add to Enquiry** on products; the list (with optional quantities) becomes the product lines of the quote request.
 - **Forms** — bulk enquiry, quote request, contact. Server-side validation, inline errors, loading / success / error states, spam honeypot, a reference number on success, and a **pre-filled WhatsApp fallback** so a lead is never lost.
-- **WhatsApp** — click-to-chat links in the correct international format (`https://wa.me/917979025165`) with the pre-filled messages from the brief. The main number (79790 25165) is used for every WhatsApp link; a second number (80513 88653) is shown for calling only. Both live in `lib/config/site.ts`.
+- **WhatsApp** — click-to-chat links in the correct international format (`https://wa.me/917979025165`) with the pre-filled messages from the brief. The main number (79790 25165) is behind every "WhatsApp Us" button; the second number (80513 88653, also on WhatsApp) has its own chat link beside it. Both live in `lib/config/site.ts`.
 - **SEO** — per-page titles & descriptions, canonical URLs, Open Graph / Twitter tags + generated share image, JSON-LD (Organization, WebSite, Breadcrumbs, FAQ), `sitemap.xml`, `robots.txt`, semantic headings, alt text, search-result pages kept out of the index.
 - **Performance & accessibility** — static pages where possible, self-hosted fonts, ~9 KB CSS, no UI library, JS limited to what interactivity needs (zod is server-only). Audited with axe-core against WCAG 2.2 AA: **0 violations** on every page at desktop and mobile widths.
 - **Architecture for what comes next** — repository interfaces, a Prisma schema for every business entity, an admin with its own sign-in (closed in production until a database is connected), and an AI-agent action policy that makes owner approval a hard rule. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/AI_SALES_AGENT.md`](docs/AI_SALES_AGENT.md).
 
 ### What Version 1 deliberately does *not* include
 
-No AI agent, no WhatsApp Business API, no payments, no invoices, no online prices or stock. The admin can sign in and manage products, brands, categories, stock and enquiries ([`docs/ADMIN.md`](docs/ADMIN.md)); quotations, orders, invoices and payments are still “Soon”, and the admin **returns 404 in production** until a database is connected. These are the next phases — the code is structured for them but none of it is faked.
+No AI agent, no WhatsApp Business API, no online payments (a person records money that has arrived), no online prices or stock. The admin can sign in and manage products, brands, categories, stock, enquiries, quotations, orders, GST tax invoices and payments ([`docs/ADMIN.md`](docs/ADMIN.md)); the admin **returns 404 in production** until a database is connected. These are the next phases — the code is structured for them but none of it is faked.
 
 ---
 
@@ -91,7 +91,7 @@ Security headers (HSTS in production, `nosniff`, frame denial, referrer and perm
 
 **About the product list:** `data/products.ts` holds only the **five products the owner identified**; `data/categories.ts` the 23 categories and `data/brands.ts` the 20 brands (a separate list — brands are not products, nothing is attached to them). There are **no SKUs, prices, GST rates, HSN codes, stock or pack sizes** anywhere in the repo. The database schema has a place for all of them (`Product`: SKU, brand, category, unit, pack size, purchase / wholesale / retail price, GST rate, HSN, stock, minimum order quantity, image, active status) so the owner can add real products later from the admin. “Cello Tape” and “Adhesive Tape” are product types (categories), not brands.
 
-**GSTIN:** the website only says “GST Registered” — it never prints the number. The number itself is deliberately *not* in the code; it will live in the server-only `BUSINESS_GSTIN` environment variable and is used for invoices later (it can be left unset for now).
+**GSTIN:** the website only says “GST Registered” — it never prints the number. The number itself is deliberately *not* in the code; it lives in the server-only `BUSINESS_GSTIN` environment variable and is printed on tax invoices (until it is set, invoices can be drafted but not issued).
 
 **Logo:** a fountain-pen nib resting on an ink line, on an indigo tile. Outlined SVG lockups (no font dependency, safe for print) are in `public/brand/` (`logo.svg`, `logo-on-dark.svg`, `logo-mark.svg`).
 

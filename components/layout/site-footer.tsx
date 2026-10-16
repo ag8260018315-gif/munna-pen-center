@@ -6,7 +6,7 @@ import { Container } from "@/components/ui/section";
 import { primaryNav, quoteNav } from "@/lib/config/navigation";
 import { siteConfig } from "@/lib/config/site";
 import { getCatalogue } from "@/lib/repositories";
-import { buildWhatsAppUrl, whatsAppMessages } from "@/lib/whatsapp";
+import { buildWhatsAppUrl, buildWhatsAppUrlForNumber, whatsAppMessages } from "@/lib/whatsapp";
 
 const linkClass = "text-brand-100 transition-colors hover:text-white";
 
@@ -65,6 +65,7 @@ export async function SiteFooter() {
                 <br />
                 {location.streetAddress ? <>{location.streetAddress}<br /></> : null}
                 {location.locality}, {location.region}, {location.country}
+                {location.postalCode ? ` – ${location.postalCode}` : ""}
               </span>
             </p>
             <p className="flex items-start gap-2.5">
@@ -74,9 +75,16 @@ export async function SiteFooter() {
                   {contact.phoneDisplay}
                 </a>
                 {contact.additionalPhones.map((phone) => (
-                  <a key={phone.e164} href={`tel:${phone.e164}`} className={linkClass}>
-                    {phone.display}
-                  </a>
+                  <span key={phone.e164} className="flex flex-wrap items-baseline gap-x-3">
+                    <a href={`tel:${phone.e164}`} className={linkClass}>
+                      {phone.display}
+                    </a>
+                    {phone.whatsapp && (
+                      <a href={buildWhatsAppUrlForNumber(phone.e164, whatsAppMessages.general)} target="_blank" rel="noopener noreferrer" aria-label={`Chat on WhatsApp with ${phone.display}`} className={`${linkClass} text-sm`}>
+                        WhatsApp
+                      </a>
+                    )}
+                  </span>
                 ))}
               </span>
             </p>

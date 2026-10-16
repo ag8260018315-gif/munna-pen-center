@@ -5,6 +5,7 @@ import { AGENT_ACTION_POLICY, SALES_STAGES } from "@/lib/ai-sales";
 import { ADMIN_SECTIONS, adminHref } from "@/lib/admin/sections";
 import { DatabaseRequired } from "@/components/admin/ui";
 import { getDashboardCounts } from "@/lib/admin/catalogue-admin";
+import { getBillingCounts } from "@/lib/admin/invoice-admin";
 import { requireAdmin } from "@/lib/auth/guard";
 import { isDatabaseConfigured } from "@/lib/db/client";
 import { cn } from "@/lib/cn";
@@ -17,10 +18,15 @@ const approvalActions = Object.entries(AGENT_ACTION_POLICY)
 
 export default async function AdminDashboardPage() {
   const session = await requireAdmin();
-  const counts = isDatabaseConfigured() ? await getDashboardCounts() : null;
+  const configured = isDatabaseConfigured();
+  const [counts, billing] = configured ? await Promise.all([getDashboardCounts(), getBillingCounts()]) : [null, null];
   const tiles = counts
     ? [
         { label: "New enquiries", value: counts.newEnquiries, href: "/admin/enquiries?status=NEW" },
+        { label: "Orders to confirm", value: billing!.ordersToConfirm, href: "/admin/orders?status=PENDING_CONFIRMATION" },
+        { label: "Orders being fulfilled", value: billing!.ordersInProgress, href: "/admin/orders" },
+        { label: "Draft invoices", value: billing!.draftInvoices, href: "/admin/invoices?status=DRAFT" },
+        { label: "Unpaid invoices", value: billing!.unpaidInvoices, href: "/admin/payments" },
         { label: "All enquiries", value: counts.enquiries, href: "/admin/enquiries" },
         { label: "Active products", value: counts.activeProducts, href: "/admin/products?status=ACTIVE" },
         { label: "Draft products", value: counts.draftProducts, href: "/admin/products?status=DRAFT" },
@@ -34,7 +40,7 @@ export default async function AdminDashboardPage() {
     <div className="mx-auto grid max-w-6xl gap-10">
       <div>
         <h1 className="text-3xl font-extrabold">Admin dashboard</h1>
-        <p className="mt-2 max-w-3xl text-muted">Enquiries, products, brands, categories and stock are live. Quotations, orders, invoices and payments come next.</p>
+        <p className="mt-2 max-w-3xl text-muted">Enquiries, products, quotations, orders, GST invoices and payments are live. The AI sales agent comes later.</p>
       </div>
 
       {counts ? (
@@ -59,7 +65,7 @@ export default async function AdminDashboardPage() {
         <h2 id="pipeline-title" className="text-xl font-extrabold">
           Sales pipeline
         </h2>
-        <p className="mt-1 text-sm text-muted">The path every enquiry will follow. Stages marked “Owner approval” cannot happen without the owner.</p>
+        <p className="mt-1 text-sm text-muted">The path every enquiry will follow once the AI agent is connected. Stages marked “Owner approval” cannot happen without the owner. “Planned” here means the agent’s automatic step; you can already do quotations, orders, invoices and payments by hand from the sidebar.</p>
         <ol className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {SALES_STAGES.map((stage, index) => (
             <li key={stage.id} className="flex items-start gap-3 rounded-xl border border-line bg-white p-4">
@@ -124,7 +130,7 @@ export default async function AdminDashboardPage() {
                   </span>
                   <span>
                     <span className="block font-bold">{section.label}</span>
-                    <span className="mt-0.5 block text-sm text-muted">Planned · Phase {section.phase}</span>
+                    <span className="mt-0.5 block text-sm text-muted">{section.available ? "Live" : `Planned · Phase ${section.phase}`}</span>
                   </span>
                 </Link>
               </li>

@@ -5,7 +5,7 @@ import { Container, PageHeader } from "@/components/ui/section";
 import { pageSeo } from "@/content/seo";
 import { siteConfig } from "@/lib/config/site";
 import { pageMetadata } from "@/lib/seo";
-import { buildWhatsAppUrl, whatsAppMessages } from "@/lib/whatsapp";
+import { buildWhatsAppUrl, buildWhatsAppUrlForNumber, whatsAppMessages } from "@/lib/whatsapp";
 import { Clock, Mail, MapPin, Phone } from "lucide-react";
 
 export const metadata = pageMetadata({ ...pageSeo.contact, path: "/contact" });
@@ -42,11 +42,18 @@ export default function ContactPage() {
                   <a href={`tel:${contact.phoneE164}`} className="text-lg font-bold text-brand-800 hover:underline">
                     {contact.phoneDisplay}
                   </a>
-                  {contact.additionalPhones.length > 0 && <p className="mt-3 text-sm font-semibold text-muted">Phone</p>}
+                  {contact.additionalPhones.length > 0 && <p className="mt-3 text-sm font-semibold text-muted">{contact.additionalPhones.every((p) => p.whatsapp) ? "Second number (phone / WhatsApp)" : "Phone"}</p>}
                   {contact.additionalPhones.map((phone) => (
-                    <a key={phone.e164} href={`tel:${phone.e164}`} className="block text-lg font-bold text-brand-800 hover:underline">
-                      {phone.display}
-                    </a>
+                    <p key={phone.e164} className="flex flex-wrap items-baseline gap-x-3">
+                      <a href={`tel:${phone.e164}`} className="text-lg font-bold text-brand-800 hover:underline">
+                        {phone.display}
+                      </a>
+                      {phone.whatsapp && (
+                        <a href={buildWhatsAppUrlForNumber(phone.e164, whatsAppMessages.general)} target="_blank" rel="noopener noreferrer" aria-label={`Chat on WhatsApp with ${phone.display}`} className="text-sm font-semibold text-brand-800 underline">
+                          WhatsApp
+                        </a>
+                      )}
+                    </p>
                   ))}
                 </div>
               </div>
@@ -80,6 +87,14 @@ export default function ContactPage() {
                   Call {phone.display}
                 </ExternalButtonLink>
               ))}
+              {contact.additionalPhones
+                .filter((phone) => phone.whatsapp)
+                .map((phone) => (
+                  <ExternalButtonLink key={`wa-${phone.e164}`} href={buildWhatsAppUrlForNumber(phone.e164, whatsAppMessages.general)} variant="whatsapp" size="lg" className="w-full">
+                    <WhatsAppIcon className="size-5" />
+                    WhatsApp {phone.display}
+                  </ExternalButtonLink>
+                ))}
             </div>
           </section>
 

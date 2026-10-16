@@ -2,7 +2,9 @@ import { Printer } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { createOrderAction } from "@/app/actions/admin-billing";
 import { addQuoteLineAction, quoteStatusAction, removeQuoteLineAction, saveQuoteHeaderAction, updateQuoteLineAction } from "@/app/actions/admin-sales";
+import { ActionButton } from "@/components/admin/billing-forms";
 import { Backlink } from "@/components/admin/backlink";
 import { LineForm, QuoteHeaderForm, StatusButton } from "@/components/admin/sales-forms";
 import { DatabaseRequired, Notice, PageHeader, StatusBadge, tableClasses } from "@/components/admin/ui";
@@ -57,7 +59,7 @@ export default async function QuotePage({ params, searchParams }: { params: Prom
       : null;
 
   return (
-    <div className="mx-auto grid max-w-5xl gap-8">
+    <div className="mx-auto grid max-w-5xl grid-cols-1 gap-8">
       <Backlink href="/admin/quotes">Quotations</Backlink>
       <PageHeader
         title={quote.number}
@@ -71,7 +73,7 @@ export default async function QuotePage({ params, searchParams }: { params: Prom
           </span>
         }
       />
-      {done && DONE[done] && <Notice kind="success">{DONE[done]}</Notice>}
+      {done !== undefined && Object.hasOwn(DONE, done) && <Notice kind="success">{DONE[done]}</Notice>}
 
       {quote.enquiry && draft && (
         <section aria-labelledby="wrote" className="rounded-xl border border-line bg-white p-5">
@@ -211,6 +213,24 @@ export default async function QuotePage({ params, searchParams }: { params: Prom
             </>
           )}
         </div>
+        {quote.status === "ACCEPTED" && (
+          <div className="mt-5 border-t border-line pt-5">
+            {quote.order ? (
+              <div className="grid gap-2">
+                <p className="flex flex-wrap items-center gap-3">
+                  Order: <Link className="font-semibold text-brand-800 underline" href={`/admin/orders/${quote.order.id}`}>{quote.order.number}</Link>
+                  <StatusBadge status={quote.order.status} />
+                </p>
+                {quote.order.status === "CANCELLED" && <p className="text-sm text-muted">That order was cancelled. A quotation makes only one order, so to sell again make a new quotation.</p>}
+              </div>
+            ) : (
+              <>
+                <ActionButton action={createOrderAction.bind(null, quote.id)} label="Create order" />
+                <p className="mt-2 text-sm text-muted">Copies these items and totals into an order. The owner then confirms it.</p>
+              </>
+            )}
+          </div>
+        )}
         {!owner && <p className="mt-4 text-sm text-muted">Only the owner can mark a quotation as sent, accepted, declined or cancelled, and only the owner can enter prices, GST and HSN.</p>}
         {owner && draft && <p className="mt-4 text-sm text-muted">“Mark as sent” is available once every item has a price and a GST rate. After that the items can no longer be edited.</p>}
       </section>

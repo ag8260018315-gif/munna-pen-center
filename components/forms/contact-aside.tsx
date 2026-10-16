@@ -2,7 +2,7 @@ import { MapPin, Phone } from "lucide-react";
 import { WhatsAppIcon } from "@/components/icons/whatsapp";
 import { ExternalButtonLink } from "@/components/ui/button";
 import { siteConfig } from "@/lib/config/site";
-import { buildWhatsAppUrl, whatsAppMessages } from "@/lib/whatsapp";
+import { buildWhatsAppUrl, buildWhatsAppUrlForNumber, whatsAppMessages } from "@/lib/whatsapp";
 
 /** "Prefer to talk?" card shown beside the forms. */
 export function ContactAside({ whatsappMessage = whatsAppMessages.general }: { whatsappMessage?: string }) {
@@ -20,9 +20,16 @@ export function ContactAside({ whatsappMessage = whatsAppMessages.general }: { w
             {contact.phoneDisplay}
           </a>
           {contact.additionalPhones.map((phone) => (
-            <a key={phone.e164} href={`tel:${phone.e164}`} className="text-brand-800 hover:underline">
-              {phone.display}
-            </a>
+            <span key={phone.e164} className="flex flex-wrap items-baseline gap-x-3">
+              <a href={`tel:${phone.e164}`} className="text-brand-800 hover:underline">
+                {phone.display}
+              </a>
+              {phone.whatsapp && (
+                <a href={buildWhatsAppUrlForNumber(phone.e164, whatsAppMessages.general)} target="_blank" rel="noopener noreferrer" aria-label={`Chat on WhatsApp with ${phone.display}`} className="text-sm text-brand-800 underline">
+                  WhatsApp
+                </a>
+              )}
+            </span>
           ))}
         </span>
       </p>
@@ -32,6 +39,7 @@ export function ContactAside({ whatsappMessage = whatsAppMessages.general }: { w
           {siteConfig.name}
           <br />
           {location.locality}, {location.region}, {location.country}
+          {location.postalCode ? ` – ${location.postalCode}` : ""}
         </span>
       </p>
       <ExternalButtonLink href={buildWhatsAppUrl(whatsappMessage)} variant="whatsapp" size="lg" className="w-full">

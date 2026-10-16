@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { normaliseGstin } from "@/lib/gstin";
+import { gstinCheckCharacter, isGstinCheckCharacterValid, normaliseGstin } from "@/lib/gstin";
 
 const SAMPLE = "29ABCDE1234F1Z5"; // the standard dummy shape, not a real registration
 
@@ -72,5 +72,33 @@ describe("the public website never prints the GSTIN", () => {
 
     const footer = await readFile("components/layout/site-footer.tsx", "utf8");
     expect(footer).toContain("GST Registered");
+  });
+});
+
+describe("GSTIN check character", () => {
+  it("matches a published sample number (so the scheme is the official one, not just self-consistent)", () => {
+    expect(gstinCheckCharacter("27AAPFU0939F1Z")).toBe("V");
+    expect(isGstinCheckCharacterValid("27AAPFU0939F1ZV")).toBe(true);
+  });
+
+  it("accepts a number built with the right check character and rejects any single mistyped character", () => {
+    const body = "20ABCDE1234F1Z";
+    const good = body + gstinCheckCharacter(body);
+    expect(isGstinCheckCharacterValid(good)).toBe(true);
+    expect(isGstinCheckCharacterValid(good.toLowerCase())).toBe(true);
+    const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    for (let i = 0; i < 14; i++) {
+      for (const replacement of alphabet) {
+        if (replacement === good[i]) continue;
+        const typo = good.slice(0, i) + replacement + good.slice(i + 1);
+        // A typo that breaks the shape is also rejected; one that keeps it must break the check.
+        expect(isGstinCheckCharacterValid(typo), typo).toBe(false);
+      }
+    }
+  });
+
+  it("rejects wrong lengths, empty values and non-GSTIN text", () => {
+    expect(gstinCheckCharacter("short")).toBeNull();
+    for (const bad of [null, undefined, "", "27AAPFU0939F1Z", "27AAPFU0939F1ZVV", "GSTIN"]) expect(isGstinCheckCharacterValid(bad)).toBe(false);
   });
 });

@@ -2,6 +2,8 @@ import "server-only";
 import { revalidatePath } from "next/cache";
 import { requireAdmin, requireOwner } from "@/lib/auth/guard";
 import { getDb } from "@/lib/db/client";
+import { clampPage } from "@/lib/db/paging";
+import { allocateSequence } from "@/lib/db/sequence";
 import { computeQuote, financialYearOf, quotationNumber } from "@/lib/domain/quote-math";
 import { fieldErrors } from "@/lib/validation/admin-catalogue";
 import { lineSchema, quotationHeaderSchema, QUOTE_STATUS_ACTIONS, type QuoteStatusAction } from "@/lib/validation/admin-sales";
@@ -40,21 +42,7 @@ const refresh = (id?: string) => {
 /** Gap-free number: the counter row is incremented inside the same transaction as the quotation. */
 async function nextQuotationNumber(tx: Tx, now = new Date()): Promise<string> {
   const financialYear = financialYearOf(now);
-  for (let attempt = 0; ; attempt++) {
-    try {
-      const row = await tx.numberSequence.upsert({
-        where: { scope_financialYear: { scope: "QT", financialYear } },
-        create: { scope: "QT", financialYear, lastValue: 1 },
-        update: { lastValue: { increment: 1 } },
-        select: { lastValue: true },
-      });
-      return quotationNumber(financialYear, row.lastValue);
-    } catch (error) {
-      // Two first-of-the-year requests can race on the insert: the loser simply retries as an update.
-      if ((error as { code?: string } | null)?.code === "P2002" && attempt < 3) continue;
-      throw error;
-    }
-  }
+  return quotationNumber(financialYear, await allocateSequence(tx, "QT", financialYear));
 }
 
 // ───────────────────────────── totals ─────────────────────────────
@@ -80,7 +68,7 @@ export async function listQuotations(params: { status?: string; page?: number })
   await requireAdmin();
   const where: Prisma.QuotationWhereInput = {};
   if (["DRAFT", "PENDING_APPROVAL", "SENT", "ACCEPTED", "REJECTED", "EXPIRED", "CANCELLED"].includes(params.status ?? "")) where.status = params.status as never;
-  const page = Math.max(1, Math.floor(params.page ?? 1));
+  const page = clampPage(params.page);
   const db = getDb();
   const [total, items] = await Promise.all([
     db.quotation.count({ where }),
@@ -96,6 +84,7 @@ export async function getQuotation(id: string) {
     include: {
       customer: true,
       enquiry: { include: { items: true } },
+      order: { select: { id: true, number: true, status: true } },
       items: { orderBy: { id: "asc" }, include: { product: { select: { id: true, name: true } } } },
     },
   });

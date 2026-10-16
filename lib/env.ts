@@ -41,6 +41,12 @@ export const serverEnvSchema = z.object({
    */
   BUSINESS_GSTIN: optionalString,
 
+  /**
+   * The registered (legal) name to print on tax invoices, if it differs from the trading name "Munna Pen Center".
+   * Leave unset to print the trading name. Used only on invoices; not shown on the public website.
+   */
+  BUSINESS_LEGAL_NAME: optionalString,
+
   /** Where V1 stores enquiries (JSONL). Needs a persistent disk. */
   ENQUIRY_DATA_DIR: optionalString,
 

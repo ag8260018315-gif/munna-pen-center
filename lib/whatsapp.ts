@@ -11,7 +11,12 @@ import { truncate, wellFormed } from "@/lib/text";
  * environment variables and are never shipped to the browser.
  */
 export function buildWhatsAppUrl(message?: string): string {
-  const base = `https://wa.me/${toWhatsAppNumber(siteConfig.contact.phoneE164)}`;
+  return buildWhatsAppUrlForNumber(siteConfig.contact.phoneE164, message);
+}
+
+/** A chat link to one of the BUSINESS's own numbers. Only use it for a number flagged `whatsapp: true` in the site config. */
+export function buildWhatsAppUrlForNumber(phoneE164: string, message?: string): string {
+  const base = `https://wa.me/${toWhatsAppNumber(phoneE164)}`;
   // wellFormed(): encodeURIComponent THROWS on a lone surrogate, and a link builder must never fail.
   return message ? `${base}?text=${encodeURIComponent(wellFormed(message))}` : base;
 }
