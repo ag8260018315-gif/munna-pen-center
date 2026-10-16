@@ -59,7 +59,7 @@ export default async function QuotePage({ params, searchParams }: { params: Prom
       : null;
 
   return (
-    <div className="mx-auto grid max-w-5xl gap-8">
+    <div className="mx-auto grid max-w-5xl grid-cols-1 gap-8">
       <Backlink href="/admin/quotes">Quotations</Backlink>
       <PageHeader
         title={quote.number}
@@ -73,7 +73,7 @@ export default async function QuotePage({ params, searchParams }: { params: Prom
           </span>
         }
       />
-      {done && DONE[done] && <Notice kind="success">{DONE[done]}</Notice>}
+      {done !== undefined && Object.hasOwn(DONE, done) && <Notice kind="success">{DONE[done]}</Notice>}
 
       {quote.enquiry && draft && (
         <section aria-labelledby="wrote" className="rounded-xl border border-line bg-white p-5">

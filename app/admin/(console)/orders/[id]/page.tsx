@@ -140,7 +140,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           )}
         </div>
         {!owner && <p className="mt-4 text-sm text-muted">Only the owner can confirm or cancel an order.</p>}
-        {owner && invoiced && ["CONFIRMED", "PROCESSING"].includes(order.status) && <p className="mt-4 text-sm text-muted">This order has an issued invoice. To cancel the order, void the invoice first.</p>}
+        {owner && invoiced && ["CONFIRMED", "PROCESSING"].includes(order.status) && <p className="mt-4 text-sm text-muted">This order has an issued invoice. To cancel the order, void the invoice first (if payments were recorded against it, reverse them before that).</p>}
         <p className="mt-4 text-sm text-muted">Changing the status never sends anything to the customer and does not change stock.</p>
       </section>
 
@@ -156,7 +156,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
         ) : (
           <dl className="mt-4 grid gap-4 rounded-xl border border-line bg-white p-5 sm:grid-cols-2">
             <div className="sm:col-span-2"><dt className="text-sm font-semibold text-muted">Delivery address</dt><dd className="mt-1">{joinAddress({ line1: order.shippingLine1, city: order.shippingCity, state: order.shippingState, pincode: order.shippingPincode }) || "—"}</dd></div>
-            <div className="sm:col-span-2"><dt className="text-sm font-semibold text-muted">Internal notes</dt><dd className="mt-1 whitespace-pre-wrap break-words">{notes.text || "—"}</dd></div>
+            <div className="sm:col-span-2"><dt className="text-sm font-semibold text-muted">Internal notes</dt><dd className="mt-1 min-w-0 whitespace-pre-wrap [overflow-wrap:anywhere]">{notes.text || "—"}</dd></div>
           </dl>
         )}
       </section>
@@ -189,7 +189,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           <p className="mt-1 text-sm text-muted">Written by the system when something important happens. It can not be edited.</p>
           <ul className="mt-3 grid gap-1.5 text-sm">
             {notes.log.map((line, n) => (
-              <li key={n} className="break-words">{line.replace(/^\[log\] /, "")}</li>
+              <li key={n} className="min-w-0 [overflow-wrap:anywhere]">{line.replace(/^\[log\] /, "")}</li>
             ))}
           </ul>
         </section>

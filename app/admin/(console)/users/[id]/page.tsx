@@ -38,7 +38,7 @@ export default async function UserPage({ params, searchParams }: { params: Promi
           </span>
         }
       />
-      {done && DONE[done] && <Notice kind="success">{DONE[done]}</Notice>}
+      {done !== undefined && Object.hasOwn(DONE, done) && <Notice kind="success">{DONE[done]}</Notice>}
       {locked && <Notice kind="error">This account is locked after too many wrong passwords. It unlocks by itself after 15 minutes, or you can unlock it now.</Notice>}
 
       {self ? (

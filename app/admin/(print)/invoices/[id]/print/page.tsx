@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import { PrintButton } from "@/components/admin/print-button";
 import { DatabaseRequired } from "@/components/admin/ui";
 import { getInvoice } from "@/lib/admin/invoice-admin";
@@ -14,6 +15,8 @@ const COPY: Record<string, string> = {
   duplicate: "Duplicate for transporter",
   triplicate: "Triplicate for supplier",
 };
+/** One lookup per request, shared by the page title and the page itself. */
+const loadInvoice = cache((id: string) => getInvoice(id));
 const copyKey = (copy: string | undefined) => (copy !== undefined && Object.hasOwn(COPY, copy) ? copy : "original");
 const dateText = (d: Date | null) => (d ? new Intl.DateTimeFormat("en-IN", { dateStyle: "long", timeZone: "Asia/Kolkata" }).format(d) : "");
 
@@ -21,7 +24,7 @@ const dateText = (d: Date | null) => (d ? new Intl.DateTimeFormat("en-IN", { dat
 export async function generateMetadata({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ copy?: string }> }): Promise<Metadata> {
   await requireAdmin();
   const [{ id }, { copy }] = await Promise.all([params, searchParams]);
-  const inv = isDatabaseConfigured() ? await getInvoice(id) : null;
+  const inv = isDatabaseConfigured() ? await loadInvoice(id) : null;
   const name = inv?.number ? inv.number.replaceAll("/", "-") : "Tax invoice";
   return { title: { absolute: `${name} ${copyKey(copy)}` } };
 }
@@ -34,7 +37,7 @@ export default async function InvoicePrintPage({ params, searchParams }: { param
   await requireAdmin();
   if (!isDatabaseConfigured()) return <DatabaseRequired />;
   const [{ id }, { copy }] = await Promise.all([params, searchParams]);
-  const inv = await getInvoice(id);
+  const inv = await loadInvoice(id);
   if (!inv || !inv.issued || !inv.tax || !inv.number) notFound();
   const tax = inv.tax;
   const intra = tax.mode === "INTRA_STATE";

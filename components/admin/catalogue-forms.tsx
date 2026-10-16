@@ -12,7 +12,7 @@ const initial: AdminFormState = {};
 export function Checkbox({ id, label, hint, defaultChecked, error }: { id: string; label: string; hint?: string; defaultChecked?: boolean; error?: string }) {
   return (
     <div className="flex items-start gap-3">
-      <input id={id} name={id} type="checkbox" defaultChecked={defaultChecked} aria-invalid={error ? true : undefined} aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined} className="mt-1 size-5 rounded border-slate-400" />
+      <input id={id} name={id} type="checkbox" defaultChecked={defaultChecked} aria-invalid={error ? true : undefined} aria-describedby={[error ? `${id}-error` : null, hint ? `${id}-hint` : null].filter(Boolean).join(" ") || undefined} className="mt-1 size-5 rounded border-slate-400" />
       <label htmlFor={id} className="text-sm font-semibold">
         {label}
         {hint && (
