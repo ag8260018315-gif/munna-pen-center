@@ -108,7 +108,8 @@ export function Pagination({ page, pages, basePath, params }: { page: number; pa
 }
 
 export const tableClasses = {
-  wrap: "overflow-x-auto rounded-xl border border-line bg-white",
+  // `relative` makes the wrapper the containing block of the visually-hidden (position: absolute) labels inside the table, so they scroll with it instead of widening the page on a phone.
+  wrap: "relative overflow-x-auto rounded-xl border border-line bg-white",
   table: "w-full min-w-[40rem] text-left text-sm",
   th: "bg-slate-50 px-4 py-3 font-bold text-ink",
   td: "border-t border-line px-4 py-3 align-top",

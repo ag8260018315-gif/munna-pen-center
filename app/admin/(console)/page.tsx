@@ -4,7 +4,8 @@ import { ADMIN_ICONS } from "@/components/admin/admin-icons";
 import { AGENT_ACTION_POLICY, SALES_STAGES } from "@/lib/ai-sales";
 import { ADMIN_SECTIONS, adminHref } from "@/lib/admin/sections";
 import { DatabaseRequired } from "@/components/admin/ui";
-import { getDashboardCounts } from "@/lib/admin/catalogue-admin";
+import { getDashboardCounts, getWebsiteStatus } from "@/lib/admin/catalogue-admin";
+import { WebsiteStatusBanner } from "@/components/admin/website-status";
 import { getBillingCounts } from "@/lib/admin/invoice-admin";
 import { requireAdmin } from "@/lib/auth/guard";
 import { isDatabaseConfigured } from "@/lib/db/client";
@@ -19,7 +20,7 @@ const approvalActions = Object.entries(AGENT_ACTION_POLICY)
 export default async function AdminDashboardPage() {
   const session = await requireAdmin();
   const configured = isDatabaseConfigured();
-  const [counts, billing] = configured ? await Promise.all([getDashboardCounts(), getBillingCounts()]) : [null, null];
+  const [counts, billing, websiteStatus] = configured ? await Promise.all([getDashboardCounts(), getBillingCounts(), getWebsiteStatus()]) : [null, null, null];
   const tiles = counts
     ? [
         { label: "New enquiries", value: counts.newEnquiries, href: "/admin/enquiries?status=NEW" },
@@ -42,6 +43,8 @@ export default async function AdminDashboardPage() {
         <h1 className="text-3xl font-extrabold">Admin dashboard</h1>
         <p className="mt-2 max-w-3xl text-muted">Enquiries, products, quotations, orders, GST invoices and payments are live. The AI sales agent comes later.</p>
       </div>
+
+      {websiteStatus && <WebsiteStatusBanner status={websiteStatus} variant="attention" />}
 
       {counts ? (
         <section aria-labelledby="counts-title">

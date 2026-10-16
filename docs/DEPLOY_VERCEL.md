@@ -17,7 +17,7 @@ Mark everything except `NEXT_PUBLIC_SITE_URL` as **Sensitive**. Paste only the v
 | `DIRECT_URL` | once Supabase exists | Supabase **direct** connection string (migrations only) |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (+ optional `SUPABASE_STORAGE_BUCKET`) | for product pictures | Server-side only; the service-role key must never be shared or committed. Steps in [`PHOTOS.md`](PHOTOS.md) |
 | `ADMIN_SETUP_TOKEN` | once, to create the first admin | A long random key that unlocks `/admin/setup`. **Delete it after the owner account is created.** See [`ADMIN.md`](ADMIN.md) |
-| `CATALOGUE_SOURCE` | later | Leave unset (built-in catalogue) until real products are loaded; then `database` |
+| `CATALOGUE_SOURCE` | when your products are Active | Leave unset (built-in catalogue) until real products are loaded; then `database` (lowercase) and **redeploy**. The admin *Products* page shows a banner saying which catalogue the website is reading |
 
 Changing a variable does **not** change an existing deployment — create a new deployment afterwards.
 

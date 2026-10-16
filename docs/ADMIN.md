@@ -7,7 +7,7 @@ Address: `https://<your-site>/admin`. It only works once the database is connect
 | Screen | What |
 | --- | --- |
 | Dashboard | New and total enquiries, orders to confirm and in progress, draft and unpaid invoices, active and draft products, out-of-stock count, brands, categories |
-| Products | Search and filter; add; edit; **Deactivate / Publish**. Fields: name, category, brand, descriptions, SKU, unit, pack size, minimum order quantity, stock, purchase / wholesale / retail price, GST %, HSN, tags, status, featured |
+| Products | A banner at the top says whether your website is showing these products or its built-in starter list. Search and filter; add; edit; **Deactivate / Publish**. Fields: name, category, brand, descriptions, SKU, unit, pack size, minimum order quantity, stock, purchase / wholesale / retail price, GST %, HSN, tags, status, featured |
 | Brands | Add, edit, deactivate; choose whether a brand is shown on the website |
 | Categories | Add, edit, deactivate; summary, description, order |
 | Users (owner only) | Add staff accounts, set a new password for someone who forgot theirs, deactivate / reactivate, unlock |
@@ -24,6 +24,14 @@ Address: `https://<your-site>/admin`. It only works once the database is connect
 | Payments | Record money received against an invoice (UPI, bank transfer, cheque, cash, card, other); see who still owes what |
 
 Still marked **Soon**: leads, follow-ups, AI sales agent, settings.
+
+## Your website does not show the products you added?
+
+The website shows the products saved in this admin **only when** the Vercel setting `CATALOGUE_SOURCE` is `database`; otherwise it shows a small built-in starter list. The banner at the top of *Products* tells you which one is happening (the dashboard shows it too when something needs doing):
+
+- **Amber "not showing these products yet":** add `CATALOGUE_SOURCE` = `database` in Vercel (*Settings → Environment Variables*, tick **Production**), then *Deployments → newest → ⋯ → Redeploy*. If the banner names a setting such as `CATALOG_SOURCE`, that one is misspelt and the site ignores it: the name must be exactly `CATALOGUE_SOURCE`.
+- **Green "showing the products saved here":** visitors see the Active products in active categories. Changes appear within a few minutes.
+- **"Visitors see an empty catalogue":** the website reads this database but no product is both Active and in an active category.
 
 ## Quotations — how they work
 
