@@ -12,18 +12,32 @@ export function splitNotes(notes: string | null | undefined): { text: string; lo
   return { text: text.join("\n").trim(), log };
 }
 
-/** What staff typed, made safe: a line that starts like a log line loses that start so it can not pass as one. */
-export function cleanUserNotes(text: string | null | undefined): string {
-  return (text ?? "")
+/** One pass: every line loses the marker however often it is repeated at its start, then the whole text is trimmed. */
+function stripMarkers(text: string): string {
+  return text
     .split("\n")
     .map((line) => {
-      // Strip the marker however many times it is repeated ("[log] [log] …"): one pass would leave a fresh marker behind.
       let clean = line;
       while (clean.startsWith(LOG)) clean = clean.slice(LOG.length);
       return clean;
     })
     .join("\n")
     .trim();
+}
+
+/**
+ * What staff typed, made safe: no line may start with the log marker. One pass is not enough — trimming can expose a new marker
+ * ("[log]  [log] x" becomes "[log] x" once the stray space goes) — so it repeats until nothing changes.
+ */
+export function cleanUserNotes(text: string | null | undefined): string {
+  let current = (text ?? "").trim();
+  for (let pass = 0; pass < 100; pass++) {
+    const next = stripMarkers(current);
+    if (next === current) return current;
+    current = next;
+  }
+  // Unreachable (each pass either shortens the text or leaves it unchanged), but never return something that could pass as a log line.
+  return current.replaceAll(LOG, "");
 }
 
 export function joinNotes(text: string, log: readonly string[]): string | null {
@@ -33,5 +47,5 @@ export function joinNotes(text: string, log: readonly string[]): string | null {
 
 /** One log line: dated (in the caller's day), by whom, what. Newlines are flattened so it stays one line. */
 export function logLine(day: string, who: string, what: string): string {
-  return `${LOG}${day} ${who}: ${what}`.replace(/[\r\n]+/g, " ").slice(0, 400);
+  return `${LOG}${day} ${who}: ${what}`.replace(/[\r\n]+/g, " ").slice(0, 600);
 }
