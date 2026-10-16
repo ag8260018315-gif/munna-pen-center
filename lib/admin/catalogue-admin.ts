@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/guard";
 import { getDb } from "@/lib/db/client";
 import { clampPage } from "@/lib/db/paging";
+import { catalogueSourceFrom, similarSettingNames, type CatalogueSource } from "@/lib/domain/website-source";
 import { invalidateCatalogueSnapshot } from "@/lib/repositories/prisma-catalogue";
 import {
   brandSchema,
@@ -377,6 +378,40 @@ export async function getDashboardCounts() {
     db.category.count({ where: { isActive: true } }),
   ]);
   return { newEnquiries, enquiries, activeProducts, draftProducts, outOfStock, brands, categories };
+}
+
+// ───────────────────────────── what the website shows ─────────────────────────────
+
+export interface WebsiteStatus {
+  source: CatalogueSource;
+  /** Setting names that look like a mistyped CATALOGUE_SOURCE (names only, never values). */
+  similarNames: string[];
+  /** Active products in an active category: what visitors can see once the website reads the database. */
+  visibleProducts: number;
+  /** Active products whose category is switched off, so visitors would not see them. */
+  hiddenByCategory: number;
+  draftProducts: number;
+  totalProducts: number;
+}
+
+/** Whether the public website reads the products saved here, and how many of them visitors can see. Shown as a banner in the admin. */
+export async function getWebsiteStatus(): Promise<WebsiteStatus> {
+  await requireAdmin();
+  const db = getDb();
+  const [visibleProducts, hiddenByCategory, draftProducts, totalProducts] = await Promise.all([
+    db.product.count({ where: { status: "ACTIVE", category: { isActive: true } } }),
+    db.product.count({ where: { status: "ACTIVE", category: { isActive: false } } }),
+    db.product.count({ where: { status: "DRAFT" } }),
+    db.product.count(),
+  ]);
+  return {
+    source: catalogueSourceFrom(process.env.CATALOGUE_SOURCE),
+    similarNames: similarSettingNames(Object.keys(process.env)),
+    visibleProducts,
+    hiddenByCategory,
+    draftProducts,
+    totalProducts,
+  };
 }
 
 // ───────────────────────────── form option lists ─────────────────────────────

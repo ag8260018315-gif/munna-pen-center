@@ -104,6 +104,34 @@ describe.skipIf(!url)("admin catalogue on a real database", () => {
 
   const form = (extra: Record<string, string> = {}) => ({ name: "ITest A Pen", slug: "itest-a-pen", categoryId: catId, status: "DRAFT", ...extra });
 
+  it("reports what visitors can see: Active products in an active category, hidden ones, drafts, and which catalogue the site reads", async () => {
+    const before = await admin.getWebsiteStatus();
+    expect(before.source).toBe("built-in"); // CATALOGUE_SOURCE is not set in the tests
+    const offCat = await db.category.create({ data: { id: "itest-aoff", slug: "itest-aoff", name: "ITest AOff", isActive: false } });
+    try {
+      for (const [slug, status, categoryId] of [["itest-a-vis1", "ACTIVE", catId], ["itest-a-vis2", "ACTIVE", catId], ["itest-a-hid", "ACTIVE", offCat.id], ["itest-a-dr", "DRAFT", catId]] as const) {
+        await db.product.create({ data: { id: slug, slug, name: slug, categoryId, status } });
+      }
+      const after = await admin.getWebsiteStatus();
+      expect(after.visibleProducts - before.visibleProducts).toBe(2);
+      expect(after.hiddenByCategory - before.hiddenByCategory).toBe(1);
+      expect(after.draftProducts - before.draftProducts).toBe(1);
+      expect(after.totalProducts - before.totalProducts).toBe(4);
+      // Names of mistyped settings are reported, never values.
+      process.env.CATALOG_SOURCE = "database";
+      try {
+        expect((await admin.getWebsiteStatus()).similarNames).toContain("CATALOG_SOURCE");
+      } finally {
+        delete process.env.CATALOG_SOURCE;
+      }
+    } finally {
+      await db.product.deleteMany({ where: { slug: { startsWith: "itest-a-" } } });
+      await db.category.delete({ where: { id: offCat.id } });
+    }
+    signedIn = false;
+    await expect(admin.getWebsiteStatus()).rejects.toThrow("NEXT_REDIRECT");
+  });
+
   it("refuses everything when nobody is signed in", async () => {
     signedIn = false;
     await expect(admin.createProduct(form())).rejects.toThrow("NEXT_REDIRECT");

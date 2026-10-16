@@ -3,7 +3,8 @@ import Link from "next/link";
 import { setProductStatusAction } from "@/app/actions/admin-catalogue";
 import { DatabaseRequired, Notice, PageHeader, Pagination, StatusBadge, tableClasses } from "@/components/admin/ui";
 import { ButtonLink } from "@/components/ui/button";
-import { getCatalogueOptions, listProducts } from "@/lib/admin/catalogue-admin";
+import { WebsiteStatusBanner } from "@/components/admin/website-status";
+import { getCatalogueOptions, getWebsiteStatus, listProducts } from "@/lib/admin/catalogue-admin";
 import { requireAdmin } from "@/lib/auth/guard";
 import { isDatabaseConfigured } from "@/lib/db/client";
 
@@ -15,9 +16,10 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
   const session = await requireAdmin();
   const sp = await searchParams;
   if (!isDatabaseConfigured()) return <div className="mx-auto grid max-w-6xl gap-6"><PageHeader title="Products" /><DatabaseRequired /></div>;
-  const [{ items, total, page, pages }, { categories }] = await Promise.all([
+  const [{ items, total, page, pages }, { categories }, websiteStatus] = await Promise.all([
     listProducts({ q: sp.q, status: sp.status, categoryId: sp.categoryId, page: Number(sp.page) || 1 }),
     getCatalogueOptions(),
+    getWebsiteStatus(),
   ]);
   const owner = session.role === "OWNER";
 
@@ -34,6 +36,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Sea
           </>
         }
       />
+      <WebsiteStatusBanner status={websiteStatus} variant="full" />
       {sp.saved && <Notice kind="success">Saved.</Notice>}
       {sp.failed && <Notice kind="error">That change could not be made. Please try again.</Notice>}
 
